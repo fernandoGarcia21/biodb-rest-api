@@ -25,16 +25,20 @@ export const getAllSamplingAreas = async(req, res ) => {
 //Query the database to return only one sampling area with a certain id
 export const getSamplingArea = async(req, res ) => {
     const {id} = req.params;
-    const {rows} = await pool.query(`SELECT SA.ID,
-                                            SA.NAME,
-                                            SA.DESCRIPTION,
-                                            SA.LATITUDE,
-                                            SA.LONGITUDE,
-                                            L.COUNTRY_ID,
-                                            L.ID LOCATION_ID
-                                        FROM SAMPLING_AREA SA
-                                        JOIN LOCATION L ON L.ID = SA.LOCATION_ID
-                                        WHERE SA.ID = $1`, [id]);
+    const {rows} = await pool.query(`
+                                    SELECT SA.ID,
+                                        SA.NAME,
+                                        SA.DESCRIPTION,
+                                        SA.LATITUDE,
+                                        SA.LONGITUDE,
+                                        L.COUNTRY_ID,
+                                        C.NAME COUNTRY_NAME,
+                                        L.ID LOCATION_ID,
+                                        L.NAME LOCATION_NAME
+                                    FROM SAMPLING_AREA SA
+                                    JOIN LOCATION L ON L.ID = SA.LOCATION_ID
+                                    JOIN COUNTRY C ON C.ID = L.COUNTRY_ID
+                                    WHERE SA.ID = $1`, [id]);
 
     if(rows.length === 0){
         return res.status(404).json({message: "Object not found"});

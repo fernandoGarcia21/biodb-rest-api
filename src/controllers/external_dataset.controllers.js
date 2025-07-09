@@ -7,14 +7,22 @@ import { pool } from "../db.js";
 
 //Query the database to return all external datasets
 export const getAllExternalDatasets = async(req, res ) => {
-    const {rows} = await pool.query('SELECT * FROM external_dataset');
+    const {rows} = await pool.query(`SELECT * FROM external_dataset`);
     res.json(rows);
 };
 
 //Query the database to return only one external dataset with a certain id
 export const getExternalDataset = async(req, res ) => {
     const {id} = req.params;
-    const {rows} = await pool.query('SELECT * FROM external_dataset e WHERE e.id = $1', [id]);
+    const {rows} = await pool.query(`SELECT ed.id external_dataset_id,
+                                            ed.name,
+                                            ed.url,
+                                            ed.description,
+                                            ed.type_dataset_id,
+                                            td.name type_dataset_name
+                                            FROM external_dataset ed
+                                            JOIN type_dataset td on td.id = ed.type_dataset_id
+                                            WHERE ed.id = $1`, [id]);
 
     if(rows.length === 0){
         return res.status(404).json({message: "Object not found"});

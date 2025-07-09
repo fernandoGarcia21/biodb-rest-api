@@ -24,7 +24,13 @@ export const getAllLocations = async(req, res ) => {
 //Query the database to return only one location with a certain id
 export const getLocation = async(req, res ) => {
     const {id} = req.params;
-    const {rows} = await pool.query('SELECT * FROM location l WHERE l.id = $1', [id]);
+    const {rows} = await pool.query(`SELECT l.id,
+                                        l.name,
+                                        co.name country_name,
+                                        l.extra_info
+                                        FROM location l
+                                        JOIN country co on co.id = l.country_id
+                                        where l.id = $1`, [id]);
 
     if(rows.length === 0){
         return res.status(404).json({message: "Object not found"});

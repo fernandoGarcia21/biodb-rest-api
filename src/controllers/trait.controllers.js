@@ -26,7 +26,15 @@ export const getAllTraits = async(req, res ) => {
 //Query the database to return only one trait with a certain id
 export const getTrait = async(req, res ) => {
     const {id} = req.params;
-    const {rows} = await pool.query('SELECT * FROM trait t WHERE t.id = $1', [id]);
+    const {rows} = await pool.query(`SELECT T.ID TRAIT_ID,
+                                            T.NAME,
+                                            T.DESCRIPTION,
+                                            T.IS_LOCATION_ASSOCIATED,
+                                            T.TRAIT_TYPE_ID,
+                                            TT.NAME TRAIT_TYPE_NAME
+                                            FROM TRAIT T
+                                            JOIN TRAIT_TYPE TT ON TT.ID = T.TRAIT_TYPE_ID
+                                            WHERE T.ID = $1`, [id]);
 
     if(rows.length === 0){
         return res.status(404).json({message: "Object not found"});

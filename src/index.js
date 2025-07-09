@@ -48,9 +48,6 @@ import { fileURLToPath } from 'url';
 import cron  from 'node-cron';
 const app = express();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-console.log(__dirname)
 
 // Define a list of allowed origins
 const allowedOrigins = [
@@ -82,7 +79,6 @@ app.use(session({
 }));
 app.use(express.json()); //So, express can receive request bodies in json format.
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '/web/nodelogin/static')));
 app.use(cookieParser());
 app.use(speciesRoutes);
 app.use(organismRoutes);
@@ -113,37 +109,6 @@ app.use(typeDatasetRoutes);
 app.use(externalDatasetRoutes);
 app.use(homeRoutes);
 
-// http://localhost:3000/
-app.get('/auth', function(request, response) {
-	// Render login template
-	response.sendFile(path.join(__dirname + '/web/nodelogin/login.html'));
-});
-
-// http://localhost:3000/home
-app.get('/home', function(request, response) {
-	// If the user is loggedin
-	if (request.session.loggedin) {
-		// Output username
-		response.send('Welcome back, ' + request.session.username + '!');
-	} else {
-		// Not logged in
-		response.send('Please login to view this page!');
-	}
-	response.end();
-});
-
-// http://localhost:3000/
-app.get('/logout', function(request, response) {
-	// If the user is loggedin
-	if (request.session.loggedin) {
-	// Render logout template
-	response.sendFile(path.join(__dirname + '/web/nodelogin/logout.html'));
-	} else {
-		// Not logged in
-		response.send('Please login to view this page!');
-        response.end();
-	}
-});
 
 //Start the server listening on a given port and
 //load the end point roles from the database 

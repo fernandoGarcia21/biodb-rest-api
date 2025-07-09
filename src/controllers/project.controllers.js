@@ -27,7 +27,15 @@ export const getAllProjects = async(req, res ) => {
 //Query the database to return only one project with a certain id
 export const getProject = async(req, res ) => {
     const {id} = req.params;
-    const {rows} = await pool.query('SELECT * FROM project p WHERE p.id = $1', [id]);
+    const {rows} = await pool.query(`SELECT  pr.id,
+                                                pr.name,
+                                                pr.description,
+                                                pr.owner_person_id,
+                                                pe.first_name || ' ' || pe.family_name owner_person_name,
+                                                pe.email owner_person_email
+                                        FROM project pr
+                                        JOIN person pe ON pe.id = pr.owner_person_id
+                                        WHERE pr.id = $1`, [id]);
 
     if(rows.length === 0){
         return res.status(404).json({message: "Object not found"});
