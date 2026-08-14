@@ -1,3 +1,7 @@
-node_modules
-biodb-client
+node_modules/
 .env
+.env.*
+!.env.example
+
+workspace.code-workspace
+npm-debug.log*

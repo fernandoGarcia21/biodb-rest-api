@@ -5,9 +5,10 @@
 
 import {Router} from 'express'
 import { name_setting_uploads_path } from '../constants.js';
-import { submitBatchUpload, startBatchProcess, getBatchProcesses, manuallyRefreshMaterializedViews } from '../controllers/batch_upload.controllers.js';
+import { submitBatchUpload, startBatchProcess, getBatchProcesses, manuallyRefreshMaterializedViews, getBatchProcessById, updateBatchProcess } from '../controllers/batch_upload.controllers.js';
 import multer from "multer";
 import path from 'path';
+import {verifyToken} from '../middleware/authMiddleware.js';
 
 const router = Router();
 
@@ -42,10 +43,11 @@ router.use((err, req, res, next) => {
 
 const upload = multer({storage: storage, fileFilter: fileFilterBatch});
 
-router.get('/batch_upload', getBatchProcesses);
-router.put('/batch_upload/start', startBatchProcess);
-router.post('/batch_upload', upload.single('fileBatch'), submitBatchUpload);
-router.post('/batch_upload/refresh', manuallyRefreshMaterializedViews);
-
+router.get('/batch_upload', verifyToken, getBatchProcesses);
+router.put('/batch_upload/start', verifyToken, startBatchProcess);
+router.post('/batch_upload', verifyToken, upload.single('fileBatch'), submitBatchUpload);
+router.post('/batch_upload/refresh', verifyToken, manuallyRefreshMaterializedViews);
+router.get('/batch_upload/:id', verifyToken, getBatchProcessById);
+router.put('/batch_upload/update/:id', verifyToken, updateBatchProcess);
 
 export default router;

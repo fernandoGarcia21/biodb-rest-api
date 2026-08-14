@@ -4,6 +4,7 @@
  */
 
 import { pool } from "../db.js";
+import format from 'pg-format';
 
 //Query the database to return all projects
 export const getAllProjects = async(req, res ) => {
@@ -14,7 +15,9 @@ export const getAllProjects = async(req, res ) => {
                                                 pe.first_name || ' ' || pe.family_name owner_person_name,
                                                 pe.email owner_person_email,
                                                 string_agg(ped.external_dataset_id::TEXT, ' | ') AS external_dataset_ids,
-                                                string_agg(ed.name::TEXT, '|') AS external_dataset_names
+                                                string_agg(ed.name::TEXT, '|') AS external_dataset_names,
+                                                pr.must_read_title,
+												pr.must_read_content
                                         FROM project pr
                                         JOIN person pe ON pe.id = pr.owner_person_id
                                         LEFT JOIN project_external_dataset ped on ped.project_id = pr.id
@@ -32,10 +35,34 @@ export const getProject = async(req, res ) => {
                                                 pr.description,
                                                 pr.owner_person_id,
                                                 pe.first_name || ' ' || pe.family_name owner_person_name,
-                                                pe.email owner_person_email
+                                                pe.email owner_person_email,
+                                                pr.must_read_title,
+                                                pr.must_read_content
                                         FROM project pr
                                         JOIN person pe ON pe.id = pr.owner_person_id
                                         WHERE pr.id = $1`, [id]);
+
+    if(rows.length === 0){
+        return res.status(404).json({message: "Object not found"});
+    }
+    res.json(rows);
+};
+
+
+//Query the database to return the must read information given an array of project ids
+export const getProjectsMustReadByIds = async(req, res ) => {
+    const {idsArray} = req.params;
+    let statementProjects = `SELECT pj.id,
+                                pj.name,
+                                pj.must_read_title,
+                                pj.must_read_content
+                                FROM project pj
+                            WHERE pj.id  in (%L) `;
+    statementProjects = format(statementProjects, idsArray).replace(/'/g, "")
+    statementProjects = statementProjects  + `AND NULLIF(TRIM(must_read_content), '') IS NOT NULL
+                            ORDER BY pj.name ASC`;
+    console.log(statementProjects);
+    const {rows} = await pool.query(statementProjects, []);
 
     if(rows.length === 0){
         return res.status(404).json({message: "Object not found"});
@@ -48,7 +75,7 @@ export const createProject = async(req, res ) => {
     const data = req.body;
     let newId = 0;
     try{
-        const {rows} = await pool.query('INSERT INTO project VALUES(DEFAULT, $1, $2, $3) RETURNING *', [data.name, data.description, data.owner_person_id]);
+        const {rows} = await pool.query('INSERT INTO project VALUES(DEFAULT, $1, $2, $3, $4, $5) RETURNING *', [data.name, data.description, data.owner_person_id, data.must_read_title, data.must_read_content]);
         console.log(rows)
         newId = rows[0].id
     }catch(error){
@@ -68,7 +95,7 @@ export const updateProject = async(req, res ) => {
     const {id} = req.params;
     const data = req.body;
     try{
-        const {rows} = await pool.query('UPDATE project SET name = $1, description = $2, owner_person_id = $3 WHERE id = $4 RETURNING *', [data.name, data.description, data.owner_person_id, id]);
+        const {rows} = await pool.query('UPDATE project SET name = $1, description = $2, owner_person_id = $3, must_read_title = $4, must_read_content = $5 WHERE id = $6 RETURNING *', [data.name, data.description, data.owner_person_id, data.must_read_title, data.must_read_content, id]);
     }catch(error){
         console.log(error);
             return res.status(500).json({message: "Internal server error"}); 

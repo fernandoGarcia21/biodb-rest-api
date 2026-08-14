@@ -7,7 +7,19 @@ import { pool } from "../db.js";
 
 //Query the database to return all external datasets
 export const getAllExternalDatasets = async(req, res ) => {
-    const {rows} = await pool.query(`SELECT * FROM external_dataset`);
+    const {rows} = await pool.query(`SELECT ed.id,
+                                            ed.name,
+                                            ed.url,
+                                            ed.description,
+                                            ed.type_dataset_id,
+                                            td.name type_dataset_name,
+                                            ed.owner_person_id,
+                                            p.first_name || ' ' || p.family_name owner_person_name,
+                                            p.email owner_person_email
+                                    FROM external_dataset ed
+                                    JOIN type_dataset td on td.id = ed.type_dataset_id
+                                    LEFT JOIN person p on p.id = ed.owner_person_id
+                                    ORDER BY 1 DESC`);
     res.json(rows);
 };
 
@@ -19,9 +31,13 @@ export const getExternalDataset = async(req, res ) => {
                                             ed.url,
                                             ed.description,
                                             ed.type_dataset_id,
-                                            td.name type_dataset_name
+                                            td.name type_dataset_name,
+                                            ed.owner_person_id,
+                                            p.first_name || ' ' || p.family_name owner_person_name,
+                                            p.email owner_person_email
                                             FROM external_dataset ed
                                             JOIN type_dataset td on td.id = ed.type_dataset_id
+                                            LEFT JOIN person p on p.id = ed.owner_person_id
                                             WHERE ed.id = $1`, [id]);
 
     if(rows.length === 0){
@@ -39,7 +55,8 @@ export const createExternalDataset = async(req, res ) => {
         const url = data.url;
         const description = data.description;
         const type_dataset_id = data.type_dataset_id;
-        const {rows} = await pool.query('INSERT INTO external_dataset VALUES(DEFAULT, $1, $2, $3, $4) RETURNING *', [name, url, description, type_dataset_id]);
+        const owner_person_id = data.owner_person_id;
+        const {rows} = await pool.query('INSERT INTO external_dataset VALUES(DEFAULT, $1, $2, $3, $4, NOW(), $5) RETURNING *', [name, url, description, type_dataset_id, owner_person_id]);
         console.log(rows)
         newId = rows[0].id
     }catch(error){
@@ -63,9 +80,11 @@ export const updateExternalDataset = async(req, res ) => {
             SET name = $1, 
             url = $2, 
             description = $3, 
-            type_dataset_id = $4 
-            WHERE id = $5 
-            RETURNING *`, [data.name, data.url, data.description, data.type_dataset_id, id]);
+            type_dataset_id = $4,
+            date_created = NOW(),
+            owner_person_id = $5
+            WHERE id = $6 
+            RETURNING *`, [data.name, data.url, data.description, data.type_dataset_id, data.owner_person_id, id]);
     }catch(error){
         console.log(error);
             return res.status(500).json({message: "Internal server error"}); 

@@ -4,10 +4,9 @@
  */
 
 import { pool } from "../db.js";
-import { mapOperations, mapCloseOperations, mapDataTypesSQL, mapDataTypesSQLExport, data_type_integer, data_type_decimal, data_type_date, data_type_text, name_setting_max_num_organisms_return } from '../constants.js';
+import { mapOperations, mapCloseOperations, mapDataTypesSQL, data_type_integer, data_type_decimal, data_type_date, data_type_text } from '../constants.js';
 import format from 'pg-format';
 import { query } from "express";
-import { stat } from "fs";
 
 //Query the database to return all organisms
 export const getOrganisms = async(req, res ) => {
@@ -34,20 +33,7 @@ export const getAllOrganismsInformation = async(req, res ) => {
                                         FROM view_all_organisms_info
                                         GROUP BY 1,2,3,4,5,6,7,8,9 --Group the query by the first seven columns
                                         ORDER BY species_name, individual_id)`);
-    
-    // Get total count and limit to first 1000 rows
-    const totalCount = rows.length;
-    const maxNumOrganismsReturn = global.customSettings[name_setting_max_num_organisms_return];
-
-    // Limit to first e.g. 1000 rows
-    const limitedRows = rows.slice(0, maxNumOrganismsReturn);
-    
-    // Send both the limited rows and total count
-    res.json({
-        organisms: limitedRows,
-        totalCount: totalCount,
-        totalAllowed: global.customSettings[name_setting_max_num_organisms_return]
-    });
+    res.json(rows);
 };
 
 
@@ -151,8 +137,8 @@ export const getInputValueStatementExport = (dataType) =>{
 
     const mapDataTypesSQLInput = new Map();
     //Set the SQL parsing statements that each datatype of the input property value can have
-    mapDataTypesSQLInput.set('1', `%s::FLOAT`); //Integer number (will be converted into float)
-    mapDataTypesSQLInput.set('2', `%s::FLOAT`); //Double
+    mapDataTypesSQLInput.set('1', `%L::FLOAT`); //Integer number (will be converted into float)
+    mapDataTypesSQLInput.set('2', `%L::FLOAT`); //Double
     mapDataTypesSQLInput.set('3', `%L`);//Text
     //mapDataTypesSQLInput.set('4', `TO_TIMESTAMP(%L, 'DD/MM/YYYY')`);//Date
     mapDataTypesSQLInput.set('4', `TO_TIMESTAMP(%L, 'DD/MM/YYYY')
@@ -314,7 +300,6 @@ export const getFilteredOrganismsInformation = async(req, res ) => {
                 statementProperties += statementNames + 
                                    statementSpecies + 
                                    statementSamplingAreas + 
-                                   statementProjects +
                                    tmpAnd+
                                    statementNullPropertiesFirst +
                                    (++paramsNumber) +
@@ -376,7 +361,6 @@ export const getFilteredOrganismsInformation = async(req, res ) => {
 
     //Append the function to show the projects associated to the organisms
     queryViewOrganisms = `SELECT *,
-                                get_projects_ids_organism(ID) PROJECT_IDS,
 	                            get_projects_organism(ID) PROJECTS
                           FROM(${queryViewOrganisms})`;
 
@@ -387,20 +371,8 @@ export const getFilteredOrganismsInformation = async(req, res ) => {
     console.log(filterArray);
 
     try{
-        // First get the total count of rows
         const {rows} = await pool.query(queryViewOrganisms, filterArray);
-        const totalCount = rows.length;
-        const maxNumOrganismsReturn = global.customSettings[name_setting_max_num_organisms_return];
-    
-        // Limit to first e.g. 1000 rows
-        const limitedRows = rows.slice(0, maxNumOrganismsReturn);
-        
-        // Send both the limited rows and total count
-        res.json({
-            organisms: limitedRows,
-            totalCount: totalCount,
-            totalAllowed: global.customSettings[name_setting_max_num_organisms_return]
-        });
+        res.json(rows);
 
     }catch(error){
         console.log(error);
@@ -507,11 +479,12 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
 
             if(key === 'filterProject'){
                 statementProjects = paramsNumber > 0 ? ' AND' : '';
+
                 paramsNumber++;
-                statementProjects = statementProjects + ` id in (SELECT organism_id FROM view_project_organism vpo WHERE vpo.project_id in (%L))`;
+                statementProjects = statementProjects + ` id in (SELECT organism_id FROM view_project_organism vpo WHERE vpo.project_id = ANY ($${paramsNumber}))`;
 
-                statementProjects = format(statementProjects, valuesArray).replace(/'/g, "");
-
+                
+                filterArray.push(valuesArray);
             }
 
             //Whether the properties filter is an AND or an OR
@@ -582,7 +555,6 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
                 const tmpStatemetNullProperties = statementNames + 
                     statementSpecies + 
                     statementSamplingAreas + 
-                    statementProjects +
                     format(
                         tmpAnd+
                         statementNullPropertiesFirst +
@@ -593,7 +565,7 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
             }else{
                 let tmpStatemetPropertiesId = format(` ${tmpAnd} property_id = %L `, propertiesArray[i]).replace(/'/g, "");
 
-                 let tmpStatemetPropertiesValue = ` AND ${mapDataTypesSQLExport.get(dataTypesArray[i])} ${tmpOperation}${getInputValueStatementExport(dataTypesArray[i])}${tmpCloseOperation}`;
+                 let tmpStatemetPropertiesValue = ` AND ${mapDataTypesSQL.get(dataTypesArray[i])} ${tmpOperation}${getInputValueStatementExport(dataTypesArray[i])}${tmpCloseOperation}`;
 
                 //If the operation is 'LIKE' we need to add the % to the value 
                  if(operationsArray[i] == 'lk'){
@@ -604,6 +576,12 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
                     //}
                  }else{
                     tmpStatemetPropertiesValue = format(tmpStatemetPropertiesValue, propertiesValuesArray[i]);
+                 }
+   
+
+                 //If the data type of the property is a number, we need to remove the quotes from the value
+                 if(dataTypesArray[i] == data_type_integer || dataTypesArray[i] == data_type_decimal){
+                    tmpStatemetPropertiesValue = tmpStatemetPropertiesValue.replace(/'/g, "");
                  }
 
                  //If the data type of the property is date and output properties were requiered we must scape the quotes to pass the value to the crosstab query
@@ -617,7 +595,6 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
                 statementProperties += statementNames + 
                                    statementSpecies + 
                                    statementSamplingAreas + 
-                                   statementProjects +
                                    tmpStatemetProperties;
             }
             

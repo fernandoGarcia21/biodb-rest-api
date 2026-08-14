@@ -4,45 +4,121 @@
  */
 
 import { pool } from "../db.js";
-import {bu_status_submitted, bu_status_running, bu_status_completed, bu_status_failed, bu_data_type_organism, bu_data_type_properties, backup_type_organism, backup_type_properties, backup_type_project_organism, name_setting_uploads_path, bu_column_organism_id, bu_column_species, bu_column_sampling_site, batch_type_upload, batch_type_delete, bu_column_projects } from "../constants.js";
+import {bu_status_submitted, 
+    bu_status_approved, 
+    bu_status_running, 
+    bu_status_completed, 
+    bu_status_failed, 
+    bu_data_type_organism, 
+    bu_data_type_properties, 
+    backup_type_organism, 
+    backup_type_properties, 
+    backup_type_project_organism, 
+    name_setting_uploads_path, 
+    bu_column_organism_id, 
+    bu_column_species, 
+    bu_column_sampling_site, 
+    batch_type_upload, 
+    batch_type_delete, 
+    bu_column_projects,
+    user_level_admin,
+    user_level_group_leader
+ } from "../constants.js";
 import { getOrganismsByListIds } from './organism.controllers.js';
 import {getOrganismPropertiesAssociations} from './organism_property.controllers.js';
 import { validateDataType, validatePreDefinedValue } from "../utilities/data_types.js";
+import { getUserById } from "./user.controllers.js";
 import fs from 'fs';
 import csv from 'csv-parser';
 import path from 'path';
 
+const normalizeCsvHeader = (header) => String(header ?? '').replace(/^\uFEFF/, '').trim();
 
-//Query the database to return all chromosomes
+
+//Query the database to return all batch processes in the table batch_upload. 
+// The query returns either the processes submitted only by the group leader user
+// or all rows for the curator/admin user.
 export const getBatchProcesses = async(req, res ) => {
-    const {rows} = await pool.query(`SELECT 
-                                            bu.id,
-                                            bu.file_name,
-                                            bu.internal_file_name,
-                                            bu.parameters,
-                                            bt.name batch_type,
-                                            pe.first_name || ' ' || pe.family_name uploaded_by,
-                                            bu.status status_id,
-                                            CASE
-                                                WHEN bu.status = '1' THEN 'Submitted'
-                                                WHEN bu.status = '2' THEN 'Running'
-                                                WHEN bu.status = '3' THEN 'Completed'
-                                                WHEN bu.status = '4' THEN 'Cancelled'
-                                                WHEN bu.status = '5' THEN 'Failed'
-                                                ELSE bu.status  -- Handle cases where the number doesn't match
-                                            END AS status,
-                                            to_char(bu.date_submitted, 'DD-MM-YYYY HH24:MI') date_submitted,
-                                            to_char(bu.date_started, 'DD-MM-YYYY HH24:MI') date_started,
-                                            to_char(bu.date_completed, 'DD-MM-YYYY HH24:MI') date_completed,
-                                            bu.logs
-                                            FROM batch_upload bu
-                                            JOIN batch_type bt on bt.id = bu.batch_type_id
-                                            JOIN person pe on pe.id = bu.uploaded_by_person_id
-                                            ORDER BY bu.date_submitted DESC
-                                            `);
-    res.json(rows);
+    const user_id = req.userId;
+    const user = await getUserById(user_id);
+
+    let baseQuery = `SELECT BU.ID,
+                                BU.FILE_NAME,
+                                BU.INTERNAL_FILE_NAME,
+                                BU.PARAMETERS,
+                                BT.NAME BATCH_TYPE,
+                                PE.FIRST_NAME || ' ' || PE.FAMILY_NAME UPLOADED_BY,
+                                BU.STATUS STATUS_ID,
+                                BUS.NAME STATUS,
+                                TO_CHAR(BU.DATE_SUBMITTED, 'DD-MM-YYYY HH24:MI') DATE_SUBMITTED,
+                                TO_CHAR(BU.DATE_STARTED, 'DD-MM-YYYY HH24:MI') DATE_STARTED,
+                                TO_CHAR(BU.DATE_COMPLETED, 'DD-MM-YYYY HH24:MI') DATE_COMPLETED,
+                                TO_CHAR(BU.DATE_CURATED, 'DD-MM-YYYY HH24:MI') DATE_CURATED,
+                                BU.LOGS,
+                                PCUR.FIRST_NAME || ' ' || PCUR.FAMILY_NAME CURATOR,
+                                BU.CURATOR_NOTES
+                            FROM
+                                BATCH_UPLOAD BU
+                                JOIN BATCH_TYPE BT ON BT.ID = BU.BATCH_TYPE_ID
+                                JOIN PERSON PE ON PE.ID = BU.UPLOADED_BY_PERSON_ID
+                                JOIN BATCH_UPLOAD_STATUS BUS ON BUS.ID = BU.STATUS
+                                LEFT JOIN PERSON PCUR ON PCUR.ID = BU.CURATOR_ID`;
+    let whereQuery = 'WHERE BU.UPLOADED_BY_PERSON_ID = $1';
+    let orderQuery = 'ORDER BY BU.DATE_SUBMITTED DESC';
+
+    if(user){
+        let params = [];
+        let finalQuery = '';
+
+        if(user.user_level_id === user_level_group_leader){ //group leader
+            finalQuery = `${baseQuery} ${whereQuery} ${orderQuery}`;
+            params = [user.person_id];
+        }else{ 
+            if(user.user_level_id === user_level_admin){ //admin user
+                finalQuery = `${baseQuery} ${orderQuery}`;
+            }else{
+                return res.status(403).json({message: "User does not have permission to access this resource"});
+            }
+        }
+
+        const {rows} = await pool.query(finalQuery, params);
+        res.json(rows);
+
+    } else {
+        return res.status(404).json({message: "User not found"});
+    }
+    
 };
 
+
+//Query the database to return a batch process by its ID. The query returns the information of the batch process, the name of the batch type and the name of the person that submitted the batch process
+export const getBatchProcessById = async(req, res ) => {
+
+    const {id} = req.params;
+    const {rows} = await pool.query(`SELECT
+                                            BU.ID,
+                                            BU.NAME,
+                                            BU.FILE_NAME,
+                                            BU.INTERNAL_FILE_NAME,
+                                            BU.PARAMETERS,
+                                            BT.NAME BATCH_TYPE,
+                                            PE.FIRST_NAME || ' ' || PE.FAMILY_NAME UPLOADED_BY,
+                                            BU.STATUS STATUS_ID,
+                                            BUS.NAME STATUS,
+                                            TO_CHAR(BU.DATE_SUBMITTED, 'DD-MM-YYYY HH24:MI') DATE_SUBMITTED
+                                        FROM
+                                            BATCH_UPLOAD BU
+                                            JOIN BATCH_TYPE BT ON BT.ID = BU.BATCH_TYPE_ID
+                                            JOIN PERSON PE ON PE.ID = BU.UPLOADED_BY_PERSON_ID
+                                            JOIN BATCH_UPLOAD_STATUS BUS ON BUS.ID = BU.STATUS
+                                        WHERE
+                                            BU.ID = $1
+                                            `, [id]);
+    if(rows.length === 0){
+        return res.status(404).json({message: "Object not found"});
+    }
+    res.json(rows);
+};
 
 //Creates one instance of a batch upload in the database
 export const submitBatchUpload = async(req, res) => {
@@ -52,8 +128,8 @@ export const submitBatchUpload = async(req, res) => {
         //const internal_file_name = uniqueFilename(BATCH_FILES_DIRECTORY, 'b'+data.batch_type_id+'-p'+data.person_id)+'.tsv';
         const internal_file_name = req.file.filename;
         const original_file_name = req.file.originalname;
-        const {rows} = await pool.query('INSERT INTO batch_upload VALUES(DEFAULT, $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, NULL, NULL, NULL, $7) RETURNING *', [original_file_name, internal_file_name, data.parameters, data.batch_type_id, data.person_id, bu_status_submitted, data.batch_name]);
-        console.log(rows)
+        const {rows} = await pool.query('INSERT INTO batch_upload VALUES(DEFAULT, $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, NULL, NULL, NULL, $7, NULL, NULL) RETURNING *', [original_file_name, internal_file_name, data.parameters, data.batch_type_id, data.person_id, bu_status_submitted, data.batch_name]);
+        //console.log(rows)
         newId = rows[0].id
     }catch(error){
         console.log(error);
@@ -98,11 +174,13 @@ export const refreshMaterializedViewsMain = async() => {
         const queryMViewTraitsDataCounts = `REFRESH MATERIALIZED VIEW view_home_traits_data_counts`;
         const queryMViewLocationOrganismsCounts = `REFRESH MATERIALIZED VIEW view_home_location_organisms_counts`;
         const queryMViewLatestDatasets = `REFRESH MATERIALIZED VIEW view_home_latest_datasets`;
+        const queryMViewSamplingAreaCounts= `REFRESH MATERIALIZED VIEW view_home_sampling_area_counts`;
 
         await pool.query(queryMViewSpeciesCounts);
         await pool.query(queryMViewTraitsDataCounts);
         await pool.query(queryMViewLocationOrganismsCounts);
         await pool.query(queryMViewLatestDatasets);
+        await pool.query(queryMViewSamplingAreaCounts);
 
         console.log('FINISHED REFRESHING');
 }
@@ -134,7 +212,7 @@ export const startBatchProcessMain = async( ) => {
                                    WHERE b.status = $1 
                                    ORDER BY b.date_submitted ASC
                                    FETCH FIRST ROW ONLY`;
-    const {rows} = await pool.query(queryPendingBatchJobs, [bu_status_submitted]);
+    const {rows} = await pool.query(queryPendingBatchJobs, [bu_status_approved]);
 
     //Verify there are pending batch uploads to process
     if(rows.length > 0){
@@ -164,7 +242,7 @@ export const startBatchProcessMain = async( ) => {
                     let headerPassed = false;
                     //Start a stream to read the file and save the rows in the database
                     const readStream = fs.createReadStream(fullFilePath);
-                    readStream.pipe(csv())
+                    readStream.pipe(csv({ mapHeaders: ({ header }) => normalizeCsvHeader(header) }))
                     .on("headers", async(headers) => {
                         console.log(' -> On Headers was called');
                         try{
@@ -202,13 +280,13 @@ export const startBatchProcessMain = async( ) => {
                         const readStream = fs.createReadStream(fullFilePath);
                         let errorMessageDataValidation = '';
                         const dataPromises = [];
-                        readStream.pipe(csv())
+                        readStream.pipe(csv({ mapHeaders: ({ header }) => normalizeCsvHeader(header) }))
                             .on("data", async (row) => {
                                 console.log(' -> On Data was called');
                                 dataPromises.push((async () => {
                                     try{
-                                        console.log(row);
-                                        //Separate the data of the fixed headers (organism id, species, sampling site) 
+                                        //console.log(row);
+                                        //Separate the data of the fixed headers (organism id, species, sampling area) 
                                         fixedColumnsData.push(await validateFixedHeadersData(row));
                                         //from the data of the properties
                                         //If the batch type is a phenotypic upload, the properties must be validated. If there are no properties in the template, the data is not validated
@@ -216,7 +294,7 @@ export const startBatchProcessMain = async( ) => {
                                             propertiesData.push(await validatePropertiesData(row, mapHeadersAndIds)); 
                                         }
                                         console.log('*************');
-                                        console.log(propertiesData);
+                                        //console.log(propertiesData);
                                     }catch(error){
                                         isDataOk = false;
                                         //Concatenate the error message to save in the log of the batch process in the DB
@@ -239,7 +317,7 @@ export const startBatchProcessMain = async( ) => {
                                     await Promise.all(dataPromises);
                                     if(isHeadersOk & isDataOk){ //if the validation of the headers and data in the previous step failed, the flags are false
 
-                                        console.log(propertiesData);
+                                        //console.log(propertiesData);
                                         let queryUpdateBatchUpload = queryInitialUpdateBatchUpload + ', date_completed = CURRENT_TIMESTAMP WHERE id = $2';
 
                                         await client.query('BEGIN'); //Begining the transaction
@@ -258,7 +336,7 @@ export const startBatchProcessMain = async( ) => {
 
                                                 //Flatten the array of arrays that contains the values of the insert
                                                 promisesBatchProcess = completeDataInsert.map(async propertiesData => { //the object propertiesData contains the values of the properties of a given individual from the csv data file
-                                                    console.log(propertiesData);
+                                                    //console.log(propertiesData);
                                                    
                                                     const tmpInsertData = propertiesData.slice(0,3); //The data to insert is the first three elements of the array
                                                     await client.query(await prepareInsertQuery(bu_data_type_properties, propertiesData), tmpInsertData);
@@ -727,18 +805,23 @@ async function validateBatchHeaders (headersRow, batch_type_id){
         console.log('Validating phenotypes headers:');
         console.log(headersRow);
 
+        // Normalize headers to avoid false mismatches (BOM, leading/trailing spaces, case).
+        const normalizeHeader = (header) => String(header ?? '').replace(/^\uFEFF/, '').trim().toUpperCase();
+        const normalizedHeaders = headersRow.map(normalizeHeader);
+
         //Check if the template has the column of SNAIL id (the unique standard identifier)
-        if(headersRow.includes(bu_column_organism_id)){
+        if(normalizedHeaders.includes(normalizeHeader(bu_column_organism_id))){
 
             //If the type of batch is upload, the columns must be validated
             if(batch_type_id == batch_type_upload){
                 //Get only phentypic properties headers, no the fixed headers: snail id, species, location
-                const onlyPropertyHeaders = headersRow.filter(header => 
-                                (header !== bu_column_organism_id &
-                                header !== bu_column_species &
-                                header !== bu_column_sampling_site &
-                                header !== bu_column_projects )
-                        );
+                const fixedHeaders = new Set([
+                    normalizeHeader(bu_column_organism_id),
+                    normalizeHeader(bu_column_species),
+                    normalizeHeader(bu_column_sampling_site),
+                    normalizeHeader(bu_column_projects),
+                ]);
+                const onlyPropertyHeaders = headersRow.filter((header) => !fixedHeaders.has(normalizeHeader(header)));
                 const {rows} = await pool.query(`SELECT p.id, 
                                                         p.template_column_name, 
                                                         p.data_type_id,
@@ -751,14 +834,17 @@ async function validateBatchHeaders (headersRow, batch_type_id){
                 console.log(rows);
                 console.log('The only valid headers are:');
                 const validHeaders = rows.map(item => item.template_column_name);
+                const validHeadersNormalized = validHeaders.map(normalizeHeader);
                 //console.log(validHeaders);
                 //Validate all given headers except the fixed ones, are part of a property (so, either phenotypes, external DS, or environment)
-                headersAreValid = onlyPropertyHeaders.every(item => rows.map(property => property.template_column_name).includes(item));
+                headersAreValid = onlyPropertyHeaders.every((item) => validHeadersNormalized.includes(normalizeHeader(item)));
             
                 if(headersAreValid){
-                    mapHeadersAndIds = rows.filter(property => onlyPropertyHeaders.includes(property.template_column_name));
+                    mapHeadersAndIds = rows.filter((property) =>
+                        onlyPropertyHeaders.some((header) => normalizeHeader(header) === normalizeHeader(property.template_column_name))
+                    );
                 }else{
-                    const invalidHeaders = onlyPropertyHeaders.filter(header => !validHeaders.includes(header));
+                    const invalidHeaders = onlyPropertyHeaders.filter((header) => !validHeadersNormalized.includes(normalizeHeader(header)));
                     throw new Error('Invalid headers found in the template:' +invalidHeaders.map(item => ' '+item));
                 }
             }
@@ -778,16 +864,33 @@ async function validateBatchHeaders (headersRow, batch_type_id){
 
 //This function validates that the properties data to be inserted has the correct format
 //for each particular property. These are the rest of the columns except the fixed ones.
-async function validatePropertiesData(dataRow, mapHeadersAndIds){
+async function validatePropertiesData(dataRow, p_mapHeadersAndIds){
     let dataInsert = []; //this is the row that will be inserted after formatting.
+    let mapHeadersAndIds = []; //this is the array of objects that contains the headers and ids of the properties to be inserted.
     try{
         console.log('ROW in phenotypes:');
         console.log(dataRow);
 
+        //if the value of the property is not provided, then eliminate the property from the dataRow
+        for (const header of p_mapHeadersAndIds) {
+                const value = dataRow[header.template_column_name];
+                if (value === '' || value === null || value === undefined) {
+                    // If the value is empty, null, or undefined, delete the property from the dataRow
+                    console.log(`Deleting property ${header.template_column_name} from the dataRow because it is empty.`);
+                    // Delete the property from the dataRow
+                    delete dataRow[header.template_column_name];
+                }else{
+                    // If the value is provided, keep the property in the dataRow
+                    console.log(`Keeping property ${header.template_column_name} with value ${value}.`);
+                    // Add the header to the mapHeadersAndIds array
+                    mapHeadersAndIds.push(header);
+                }
+            }
+
         //Validate the format af all properties according to their data type
         const resultDataValidations = mapHeadersAndIds.map(header => ({
             template_column_name : header.template_column_name,
-            result:validateDataType(header.data_type_id, dataRow[header.template_column_name])
+            result: validateDataType(header.data_type_id, dataRow[header.template_column_name])
             }));
         
         //Identify properties that did not pass the format validation
@@ -806,30 +909,35 @@ async function validatePropertiesData(dataRow, mapHeadersAndIds){
 
             //Check all properties passed the pre-defined values validation
             if(nonPassingPreDefined.length == 0){
-                //Add the value to the Ids of the headers in a new key value object (dataInsert)
-                dataInsert = mapHeadersAndIds.map(header => ({
-                organism_id: dataRow[bu_column_organism_id],
-                template_column_name: header.template_column_name,
-                property_id: header.id,
-                value: dataRow[header.template_column_name] // Add new value property
-                }));
 
-                //Determine whether the property-organism association already exists in the DB or not
-                
-                const propertyOrganismAssociations = await getOrganismPropertiesAssociations(dataInsert.map(di => [di.organism_id, di.property_id]));
-                console.log(propertyOrganismAssociations);
+                //If the data is ok and there are properties with values to insert, then prepare the data to be inserted
+                if( mapHeadersAndIds.length > 0 ){
+                    //Add the value to the Ids of the headers in a new key value object (dataInsert)
+                    dataInsert = mapHeadersAndIds.map(header => ({
+                    organism_id: dataRow[bu_column_organism_id],
+                    template_column_name: header.template_column_name,
+                    property_id: header.id,
+                    value: dataRow[header.template_column_name] // Add new value property
+                    }));
 
-                //If the property-organism association already exists, the data will be updated
-                //If the property-organism association does not exist, the data will be inserted
-                //Keep only the information required for the insert values of phenotypic properties and discard unnnecesary fields.
-                //The dataInsert object will have the following structure: [organism_id, property_id, value, 'I' or 'U'] 
-                //I and U are the flags to insert or update the property data in the DB
-                dataInsert = dataInsert.map(di => [di.organism_id, 
-                                                    di.property_id, 
-                                                    di.value, 
-                                                    propertyOrganismAssociations.find(pa => pa.individual_id == di.organism_id && pa.property_id == di.property_id) ? 'U' : 'I']);
+                    //Determine whether the property-organism association already exists in the DB or not
+                    
+                    const propertyOrganismAssociations = await getOrganismPropertiesAssociations(dataInsert.map(di => [di.organism_id, di.property_id]));
+                    //console.log(propertyOrganismAssociations);
 
-
+                    //If the property-organism association already exists, the data will be updated
+                    //If the property-organism association does not exist, the data will be inserted
+                    //Keep only the information required for the insert values of phenotypic properties and discard unnnecesary fields.
+                    //The dataInsert object will have the following structure: [organism_id, property_id, value, 'I' or 'U'] 
+                    //I and U are the flags to insert or update the property data in the DB
+                    dataInsert = dataInsert.map(di => [di.organism_id, 
+                                                        di.property_id, 
+                                                        di.value, 
+                                                        propertyOrganismAssociations.find(pa => pa.individual_id == di.organism_id && pa.property_id == di.property_id) ? 'U' : 'I']);
+                }else{
+                    //If there are no properties to insert, then return an empty array
+                    console.log('There are no properties to insert for organism ' + dataRow[bu_column_organism_id]);
+                }
             }else{
                 throw new Error('Organism ' + dataRow[bu_column_organism_id] +'. The value provided for ' + 
                     nonPassingPreDefined.map(invalidProperties => invalidProperties.template_column_name).join(', ') + 
@@ -859,7 +967,7 @@ async function validateFixedHeadersData(dataRow){
     try{
 
         //If the species of the organism to insert is not a valid species
-        console.log(dataRow);
+        //console.log(dataRow);
         if(dataRow.hasOwnProperty(bu_column_species) && dataRow[bu_column_species] != '') {
             if(dataRow[bu_column_species] in mapSpecies){
                 //Add the species id and the sampling site to the object if this exists
@@ -894,3 +1002,16 @@ async function validateFixedHeadersData(dataRow){
 
     return dataInsert;
 }
+
+//Updates one batch process in the database
+export const updateBatchProcess = async(req, res ) => {
+    const {id} = req.params;
+    const data = req.body;
+    try{
+        const {rows} = await pool.query('UPDATE batch_upload SET status = $1, curator_id = $2, curator_notes = $3, date_curated = NOW() WHERE id = $4 RETURNING *', [data.status_id, data.curator_id, data.curator_notes, id]);
+    }catch(error){
+        console.log(error);
+            return res.status(500).json({message: "Internal server error"}); 
+    }
+    res.status(200).send(`Review of the batch process with id ${id} registered successfully`);
+};

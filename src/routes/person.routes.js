@@ -9,10 +9,10 @@ import {verifyToken} from '../middleware/authMiddleware.js';
 
 const router = Router();
 
-router.get('/person', getAllPersons);
-router.get('/person/:id', getPerson);
+router.get('/person', verifyToken, getAllPersons);
+router.get('/person/:id', verifyToken, getPerson);
 router.post('/person', verifyToken, createPerson);
-router.put('/person/:id', updatePerson);
-router.delete('/person/:id', deletePerson);
+router.put('/person/:id', verifyToken, updatePerson);
+router.delete('/person/:id', verifyToken, deletePerson);
 
 export default router;

@@ -5,14 +5,15 @@
 
 import {Router} from 'express'
 import { createLocation, deleteLocation, getAllLocations, getLocation, updateLocation, getLocationsByCountry } from '../controllers/location.controllers.js';
+import { verifyToken } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
 router.get('/location', getAllLocations);
 router.get('/location/:id', getLocation);
 router.get('/location/country/:countryId', getLocationsByCountry);
-router.post('/location', createLocation);
-router.put('/location/:id', updateLocation);
-router.delete('/location/:id', deleteLocation);
+router.post('/location', verifyToken, createLocation);
+router.put('/location/:id', verifyToken, updateLocation);
+router.delete('/location/:id', verifyToken, deleteLocation);
 
 export default router;

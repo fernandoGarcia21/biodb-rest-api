@@ -14,10 +14,13 @@ export const getAllSamplingAreas = async(req, res ) => {
                                             sa.longitude,
                                             l.id location_id,
                                             l.name location_name,
-                                            c.name country_name
+                                            c.name country_name,
+                                            sa.habitat_id,
+                                            h.name habitat_name
                                             FROM sampling_area sa
                                             JOIN location l ON l.id = sa.location_id
                                             JOIN country c ON c.id = l.country_id
+                                            LEFT JOIN habitat h ON h.id = sa.habitat_id
                                             ORDER BY 2`);
     res.json(rows);
 };
@@ -34,10 +37,14 @@ export const getSamplingArea = async(req, res ) => {
                                         L.COUNTRY_ID,
                                         C.NAME COUNTRY_NAME,
                                         L.ID LOCATION_ID,
-                                        L.NAME LOCATION_NAME
+                                        L.NAME LOCATION_NAME,
+                                        SA.HABITAT_ID,
+                                        H.NAME HABITAT_NAME,
+                                        H.DESCRIPTION HABITAT_DESCRIPTION
                                     FROM SAMPLING_AREA SA
                                     JOIN LOCATION L ON L.ID = SA.LOCATION_ID
                                     JOIN COUNTRY C ON C.ID = L.COUNTRY_ID
+                                    LEFT JOIN HABITAT H ON H.ID = SA.HABITAT_ID
                                     WHERE SA.ID = $1`, [id]);
 
     if(rows.length === 0){
@@ -52,9 +59,12 @@ export const getAllSamplingAreasAndLocations = async(req, res ) => {
     const {rows} = await pool.query(`SELECT L.ID LOCATION_ID,
                                             L.NAME LOCATION_NAME,
                                             SA.ID SAMPLING_AREA_ID,
-                                            SA.NAME SAMPLING_AREA_NAME
+                                            SA.NAME SAMPLING_AREA_NAME,
+                                            H.ID HABITAT_ID,
+                                            H.NAME HABITAT_NAME
                                         FROM SAMPLING_AREA SA
                                         JOIN LOCATION L ON L.ID = SA.LOCATION_ID
+                                        LEFT JOIN HABITAT H ON H.ID = SA.HABITAT_ID
                                         ORDER BY 2, 4 ASC`);
     res.json(rows);
 };
@@ -70,8 +80,9 @@ export const createSamplingArea = async(req, res ) => {
         const latitude = data.latitude;
         const longitude = data.longitude;
         const location_id = data.location_id;
+        const habitat_id = data.habitat_id;
 
-        const {rows} = await pool.query('INSERT INTO sampling_area VALUES(DEFAULT, $1, $2, $3, $4, $5) RETURNING *', [name, description, latitude, longitude, location_id]);
+        const {rows} = await pool.query('INSERT INTO sampling_area VALUES(DEFAULT, $1, $2, $3, $4, $5, $6) RETURNING *', [name, description, latitude, longitude, location_id, habitat_id]);
         console.log(rows)
         newId = rows[0].id
     }catch(error){
@@ -92,12 +103,13 @@ export const updateSamplingArea = async(req, res ) => {
     const {id} = req.params;
     const data = req.body;
     try{
-        const {rows} = await pool.query('UPDATE sampling_area SET name = $1, description = $2, latitude = $3, longitude = $4, location_id = $5 WHERE id = $6 RETURNING *', [
+        const {rows} = await pool.query('UPDATE sampling_area SET name = $1, description = $2, latitude = $3, longitude = $4, location_id = $5, habitat_id = $6 WHERE id = $7 RETURNING *', [
             data.name, 
             data.description, 
             data.latitude, 
             data.longitude, 
             data.location_id, 
+            data.habitat_id,
             id]);
     }catch(error){
         console.log(error);

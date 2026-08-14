@@ -1,3 +1,10 @@
 {
-	"folders": []
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../biodb-react-client"
+		}
+	]
 }

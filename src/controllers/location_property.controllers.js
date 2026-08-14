@@ -42,7 +42,8 @@ export const getAllTraitPropertiesNoLocation = async(req, res ) => {
                                             p.id property_id,
                                             p.name property_name,
                                             dt.id data_type_id,
-                                            dt.name data_type_name
+                                            dt.name data_type_name,
+                                            p.req_project_must_read
                                         FROM trait t
                                         JOIN trait_type tt on tt.id = t.trait_type_id
                                         JOIN property p on p.trait_id = t.id

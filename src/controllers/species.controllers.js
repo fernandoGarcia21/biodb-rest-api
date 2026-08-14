@@ -47,8 +47,9 @@ export const createSpecies = async(req, res ) => {
         const name = data.name;
         const description = data.description;
         const internal_code = data.internal_code;
+        const image_file_name = req.file.originalname; // Access the uploaded file's original name
 
-        const {rows} = await pool.query('INSERT INTO species VALUES(DEFAULT, $1, $2, $3) RETURNING *', [name, description, internal_code]);
+        const {rows} = await pool.query('INSERT INTO species VALUES(DEFAULT, $1, $2, $3, $4) RETURNING *', [name, description, internal_code, image_file_name]);
         console.log(rows)
         newId = rows[0].id
     }catch(error){
@@ -69,7 +70,7 @@ export const updateSpecies = async(req, res ) => {
     const {id} = req.params;
     const data = req.body;
     try{
-        const {rows} = await pool.query('UPDATE species SET name = $1, description = $2 WHERE id = $3 RETURNING *', [data.name, data.description, id]);
+        const {rows} = await pool.query('UPDATE species SET name = $1, description = $2, internal_code = $3, image_file_name = $4 WHERE id = $5 RETURNING *', [data.name, data.description, data.internal_code, req.file.originalname, id]);
     }catch(error){
         console.log(error);
             return res.status(500).json({message: "Internal server error"}); 

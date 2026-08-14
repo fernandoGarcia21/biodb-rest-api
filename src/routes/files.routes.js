@@ -4,10 +4,13 @@
  */
 
 import {Router} from 'express'
-import { getFile } from '../controllers/file.controllers.js';
+import { getImageFile, getCSVFile, getBatchFileByBatchId, getDBLogoImageFile } from '../controllers/file.controllers.js';
 
 const router = Router();
 
-router.get('/images/:filename', getFile);
+router.get('/images/:filename', getImageFile);
+router.get('/files/:filename', getCSVFile);
+router.get('/batch_file/:batchId', getBatchFileByBatchId);
+router.get('/db_logo', getDBLogoImageFile);
 
 export default router;

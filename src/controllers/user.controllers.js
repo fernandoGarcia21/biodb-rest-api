@@ -273,3 +273,23 @@ export const deactivateUser = async(req, res ) => {
     }
     res.status(200).send(`User with id ${id} deactivated successfully`);
 };
+
+
+//Query the database to return only one user with a certain id
+export const getUserById = async(user_id) => {
+    const {rows} = await pool.query(`SELECT uc.id,
+                                            uc.person_id,
+                                            p.first_name,
+                                            p.family_name,
+                                            p.email,
+                                            uc.user_level_id,
+                                            uc.status_id
+                                    FROM user_credentials uc
+                                    JOIN person p on p.id = uc.person_id
+                                    WHERE uc.id = $1`, [user_id]);
+
+    if(rows.length === 0){
+        return null;
+    }
+    return rows[0];
+};

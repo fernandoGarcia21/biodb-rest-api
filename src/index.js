@@ -10,6 +10,7 @@ import speciesRoutes from './routes/species.routes.js';
 import ecotypeRoutes from './routes/ecotype.routes.js';
 import locationRoutes from './routes/location.routes.js';
 import samplingAreaRoutes from './routes/sampling_area.routes.js';
+import habitatRoutes from './routes/habitat.routes.js';
 import referenceGenomeRoutes from './routes/reference_genome.routes.js';
 import chromosomeRoutes from './routes/chromosome.routes.js';
 import personRoutes from './routes/person.routes.js';
@@ -33,12 +34,14 @@ import fileRoutes from './routes/files.routes.js';
 import typeDatasetRoutes from './routes/type_dataset.routes.js';
 import externalDatasetRoutes from './routes/external_dataset.routes.js';
 import homeRoutes from './routes/home.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
 
 import { getAllEndPointAccess } from './controllers/end_point_access.controllers.js';
 import { getSpeciesInternalCodes } from './controllers/species.controllers.js';
 import { getBatchTypeNumberCols } from './controllers/batch_type.controllers.js';
 import { getSettings } from './controllers/settings.controllers.js';
 import { startBatchProcessMain, refreshMaterializedViewsMain } from './controllers/batch_upload.controllers.js';
+import { apiLimiter, authLimiter } from './middleware/rateLimiter.js';
 import morgan from 'morgan';
 import session from 'express-session';
 import cookieParser from 'cookie-parser';
@@ -51,8 +54,10 @@ const app = express();
 
 // Define a list of allowed origins
 const allowedOrigins = [
-	'http://10.41.170.35:8080', // Example IP address
-	'http://192.168.144.5:8080', //PHONE
+	//'http://76.13.9.98:8080', // IP address of the production environment where the frontend is hosted
+	'https://www.littorinadb.com', // Production domain
+	'https://littorinadb.com',
+	//'http://192.168.144.5:8080', //PHONE
 	'http://localhost:8080',     // Localhost
 	'http://127.0.0.1:8080'      // Localhost with loopback address
   ];
@@ -80,11 +85,16 @@ app.use(session({
 app.use(express.json()); //So, express can receive request bodies in json format.
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Apply general rate limiter to all routes
+app.use(apiLimiter);
+
 app.use(speciesRoutes);
 app.use(organismRoutes);
 app.use(ecotypeRoutes);
 app.use(locationRoutes);
 app.use(samplingAreaRoutes);
+app.use(habitatRoutes);
 app.use(referenceGenomeRoutes);
 app.use(chromosomeRoutes);
 app.use(personRoutes);
@@ -108,6 +118,8 @@ app.use(fileRoutes);
 app.use(typeDatasetRoutes);
 app.use(externalDatasetRoutes);
 app.use(homeRoutes);
+app.use(settingsRoutes);
+
 
 
 //Start the server listening on a given port and
@@ -122,7 +134,7 @@ app.listen(HTTP_PORT, '0.0.0.0', async function(){
     //console.log(endPointAccess);
 	//console.log(speciesInternalCodes);
 	//console.log(batchTypeNumbercols);
-	console.log(customSettings);
+	//console.log(customSettings);
     //Export the end point access rules as a global object
     global.endPointAccess = endPointAccess;
 	global.speciesInternalCodes = speciesInternalCodes;
@@ -131,7 +143,7 @@ app.listen(HTTP_PORT, '0.0.0.0', async function(){
 
 });
 console.log('Server listening on port ', HTTP_PORT);
-
+ 
 // Schedule a task to process batch jobs to run every minute
 cron.schedule('* * * * *', () => {
     console.log('Batch processes (e.g. create organisms) are executed every //minute:', new Date().toLocaleTimeString());

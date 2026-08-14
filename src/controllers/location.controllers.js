@@ -26,6 +26,7 @@ export const getLocation = async(req, res ) => {
     const {id} = req.params;
     const {rows} = await pool.query(`SELECT l.id,
                                         l.name,
+                                        co.id country_id,
                                         co.name country_name,
                                         l.extra_info
                                         FROM location l
