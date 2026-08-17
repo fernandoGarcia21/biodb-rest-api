@@ -14,6 +14,6 @@ export const DB_PORT = process.env.DB_PORT;
 export const HTTP_PORT = process.env.PORT || 3000;
 
 //Secret key used to generate the authentication token of the rest api
-export const SECRET_KEY = process.env.S_K
+export const SECRET_KEY = process.env.JWT_SECRET
 export const VALIDATE_TOKEN = true; //For practicity in development, the token validation can be inactivated
 //export const BATCH_FILES_DIRECTORY = 'C:/Users/dgarciac/batch_files';

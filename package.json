@@ -1,7 +1,7 @@
 {
   "name": "biodb-rest-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "REST API for the flexBioDB framework",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -9,8 +9,14 @@
     "dev": "node --env-file .env --watch src/index.js"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Diego Fernando García Castillo (https://github.com/fernandoGarcia21)",
+  "contributors": [
+  "Anja Westram",
+  "Roger Butlin",
+  "Rui Faria",
+  "Nick Barton"
+	],
+  "license": "MIT",
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
