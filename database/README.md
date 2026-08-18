@@ -15,8 +15,11 @@ systems.
     constraints, sequences, views, materialized views, functions,
     procedures, and other database objects.
 -   `seed.sql` --- inserts the reference/catalog data required by a new
-    flexBioDB installation and creates a bootstrap administrator
-    account.
+    flexBioDB installation, creates a bootstrap administrator account,
+    and provides generic initial values for the `settings` table.
+-   `examples/settings.LittorinaDB.sql` --- optional example showing how
+    the generic `settings` values can be customized for a real flexBioDB
+    instance. LittorinaDB is provided as the reference implementation.
 
 The seed contains only the initial data required by the framework. It is
 not intended to contain real LittorinaDB users or other production user
@@ -52,9 +55,7 @@ CREATE USER admin_biodb WITH PASSWORD 'YOUR_SECURE_DATABASE_PASSWORD';
 ```
 
 Use a strong password and do not store the real password in this
-repository.
-
-If `admin_biodb` already exists, do not create it again.
+repository. If `admin_biodb` already exists, do not create it again.
 
 ## 2. Create the database
 
@@ -77,7 +78,52 @@ In particular, ownership allows operations such as refreshing
 materialized views without requiring the application account to be a
 PostgreSQL superuser.
 
-## 3. Review the bootstrap administrator credentials
+## 3. Review the instance settings
+
+Before importing `seed.sql`, review the generic values inserted into the
+`settings` table. These values define deployment- and instance-specific
+configuration, including:
+
+-   database instance name, suffix, logo, and welcome message;
+-   content displayed on the About page;
+-   the maximum number of organism records displayed on screen; and
+-   server directories used for permanent files and uploaded batch
+    files.
+
+The generic values can be customized directly in `seed.sql` before
+installation. Alternatively, they can be updated directly in the
+`settings` table after installation, for example:
+
+``` sql
+UPDATE public.settings
+SET value = 'MyDatabase'
+WHERE name = 'DB_NAME';
+```
+
+This version of flexBioDB does not provide a user-interface CRUD module
+for the `settings` table. These parameters are expected to change only
+occasionally and generally concern deployment- or instance-level
+configuration. They are therefore intended to be managed by the
+server/database administrator rather than through routine database
+curation.
+
+Particular attention must be given to:
+
+``` text
+PERMANENT_FILES_DIRECTORY
+BATCH_FILES_DIRECTORY
+```
+
+Both values must be valid absolute paths on the target server. The
+backend process must have the appropriate read/write permissions for
+these directories.
+
+The `examples/settings.LittorinaDB.sql` file provides a practical
+example of how these generic settings can be customized for LittorinaDB.
+It uses `UPDATE` statements and is intended to be executed only after
+`seed.sql`. Review and adapt the file-system paths before using it.
+
+## 4. Review the bootstrap administrator credentials
 
 Before importing `seed.sql`, review the default flexBioDB administrator
 account.
@@ -110,15 +156,8 @@ the backend project directory with:
 node -e "console.log(require('bcryptjs').hashSync('YOUR_PASSWORD', 10))"
 ```
 
-Replace `YOUR_PASSWORD` with the desired administrator password.
-
-The command will return a bcrypt hash similar to:
-
-``` text
-$2a$10$.....................................................
-```
-
-Copy the generated hash and replace the default administrator password
+Replace `YOUR_PASSWORD` with the desired administrator password. Copy
+the generated bcrypt hash and replace the default administrator password
 hash in `seed.sql`.
 
 You may also replace `admin@example.com` with the desired administrator
@@ -138,7 +177,7 @@ User/person information can be managed from:
 /dashboard/users
 ```
 
-## 4. Import the database schema
+## 5. Import the database schema
 
 Import `schema.sql` while connected as `admin_biodb`:
 
@@ -150,7 +189,7 @@ It is important to perform the import as `admin_biodb`. Objects created
 during the import will therefore be owned by the dedicated flexBioDB
 database role rather than by the PostgreSQL superuser.
 
-## 5. Import the seed data
+## 6. Import the seed data
 
 After the schema has been created, import the initial reference data:
 
@@ -158,18 +197,40 @@ After the schema has been created, import the initial reference data:
 psql -h localhost -U admin_biodb -d biodb -f database/seed.sql
 ```
 
-The seed populates the reference/catalog tables required by flexBioDB
-and creates the bootstrap administrator records in `person` and
-`user_credentials`.
+The seed populates the reference/catalog tables required by flexBioDB,
+creates the bootstrap administrator records in `person` and
+`user_credentials`, and inserts generic initial values into `settings`.
 
 The seed also synchronizes the relevant identity sequences after
 inserting records with explicit IDs so that subsequent records generated
 by the application receive the correct IDs.
 
-## 6. Refresh the materialized views
+## 7. Optional: apply the LittorinaDB example settings
 
-After creating the schema and importing the seed data, refresh all
-materialized views so that they reflect the newly inserted data.
+This step is **optional** and is intended primarily as a practical
+example for administrators configuring a new flexBioDB instance.
+
+After `seed.sql` has been imported, the generic settings can be replaced
+with the LittorinaDB reference configuration using:
+
+``` bash
+psql -h localhost -U admin_biodb -d biodb -f database/examples/settings.LittorinaDB.sql
+```
+
+The example file uses `UPDATE` statements rather than inserting a second
+set of settings. Before executing it, review values that depend on the
+deployment environment, especially `PERMANENT_FILES_DIRECTORY` and
+`BATCH_FILES_DIRECTORY`.
+
+Administrators deploying a different biological database can use this
+file as a guide and update the corresponding records with values
+appropriate to their own flexBioDB instance.
+
+## 8. Refresh the materialized views
+
+After creating the schema and importing the seed data (and, when
+applicable, the example instance settings), refresh all materialized
+views so that they reflect the newly inserted data.
 
 Connect to the database as `admin_biodb`:
 
@@ -202,7 +263,7 @@ This block discovers and refreshes all materialized views in the
 `public` schema. It does not create a permanent function in the
 database.
 
-## 7. Verify the installation
+## 9. Verify the installation
 
 You can inspect the database from `psql`:
 
@@ -254,6 +315,9 @@ REFRESH MATERIALIZED VIEW view_all_organisms_info;
     deployment, or change them immediately after the first login.
 -   Keep the backend `JWT_SECRET` private and separate from the
     PostgreSQL credentials.
+-   Review the `settings` values before production deployment,
+    especially server file-system paths and instance-specific public
+    content.
 
 ## LittorinaDB
 
@@ -267,8 +331,6 @@ implementation of LittorinaDB are provided in Chapter 4 of:
 > García Castillo, D. F. (2026). *The genomic architecture of local
 > adaptation in introduced populations*. Institute of Science and
 > Technology Austria (ISTA). https://doi.org/10.15479/AT-ISTA-20991
-
-
 
 Additional information about the Littorina research community is
 available at:

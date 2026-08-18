@@ -381,34 +381,99 @@ INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('
 --
 -- Data for Name: settings; Type: TABLE DATA; Schema: public; Owner: -
 --
+-- =============================================================================
+-- flexBioDB instance settings
+-- =============================================================================
+-- These settings define deployment- and instance-specific parameters.
+-- Review and customize them before deploying a flexBioDB instance.
+--
+-- They can be modified directly in this seed file before installation or
+-- updated later in the public.settings table by the server/database
+-- administrator.
+-- =============================================================================
 
-INSERT INTO public.settings (name, value) VALUES ('ABOUT_COLLABORATION', 'Conceptualized during the XIII ISOLBE (July 2023), LittorinaDB is a community-driven project supported by researchers across North America, Europe, and Asia.');
-INSERT INTO public.settings (name, value) VALUES ('ABOUT_CITE', 'Littorina Research Community (2026). LittorinaDB: A standardized database for Littorina evolutionary and ecological research. Available at: [https://www.littorinadb.org] (Accessed: [Date]).');
-INSERT INTO public.settings (name, value) VALUES ('ABOUT_MISSION', '<b>LittorinaDB</b> addresses the fragmentation of biological data in the <i>Littorina</i> research community. By providing a centralized, three-tier architecture, we enable researchers to integrate phenotypic, environmental, and genomic datasets under standardized protocols.');
-INSERT INTO public.settings (name, value) VALUES ('ABOUT_SCOPE', '<p>LittorinaDB is the first MOD oriented to individual organisms (snails) of the <i>Littorina</i> genus that includes standardized phenotypic data, environmental features, and direct links to external datasets (NCBI/SRA).</p>
-<ul>
-	<li><b>Species:</b> Currently hosting <i>L. saxatilis</i> and <i>L. arcana</i>.</li>
-	<li><b>Data Model:</b> Utilizing a hierarchical Trait/Feature-Property model.</li>
-	<li><b>Standardization:</b> We have moved beyond simple data hosting. LittorinaDB enforces standardized protocols for data measuring and recording to ensure interoperability across the research community.</li>
-</ul>');
-INSERT INTO public.settings (name, value) VALUES ('MAX_ORGANISMS_QUERY', '500');
-INSERT INTO public.settings (name, value) VALUES ('DB_NAME', 'Littorina');
-INSERT INTO public.settings (name, value) VALUES ('DB_NAME_SUFFIX', 'DB');
-INSERT INTO public.settings (name, value) VALUES ('DB_LOGO_FILE_NAME', 'LittorinaDB-logo-prod.png');
-INSERT INTO public.settings (name, value) VALUES ('DB_WELCOME_MESSAGE', 'A standardized, open-access database for phenotypic, environmental, and ecological data from the Littorina research community.');
-INSERT INTO public.settings (name, value) VALUES ('PERMANENT_FILES_DIRECTORY', '/home/diego/DB/permanent_files');
-INSERT INTO public.settings (name, value) VALUES ('BATCH_FILES_DIRECTORY', '/home/diego/DB/uploaded_files');
-INSERT INTO public.settings (name, value) VALUES ('ABOUT_CONTACT', '<div style="border: 1px solid #aed6f1; padding: 20px; border-radius: 8px; display: flex; align-items: center; gap: 20px;">
-        <div style="font-size: 2rem;">&#9993;</div>
-        <div>
-            <p style="margin: 0; font-weight: bold; color: var(--primary);">Have questions or comments?</p>
-            <p style="margin: 5px 0 15px 0;">For technical inquiries, data submission requests, or general comments regarding the Littorina research ecosystem, please visit our community contact portal.</p>
-            <a href="https://littorina.at.biopolis.pt/contact" target="_blank" style="background-color: #635bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
-                Visit the Littorina Research Community Contact Page →
-            </a>
-        </div>
-    </div>');
 
+-- Absolute path to the directory where permanent files, such as the database
+-- logo, species thumbnails, and CSV templates, are stored.
+INSERT INTO public.settings (name, value)
+VALUES ('PERMANENT_FILES_DIRECTORY', '/path/to/permanent_files');
+
+
+-- Absolute path to the directory where CSV files uploaded by authenticated
+-- users are stored.
+INSERT INTO public.settings (name, value)
+VALUES ('BATCH_FILES_DIRECTORY', '/path/to/uploaded_files');
+
+
+-- Maximum number of organism records displayed in query results at
+-- /dashboard/organism. This limit only affects on-screen visualization;
+-- dataset downloads include the complete set of records returned by the query.
+INSERT INTO public.settings (name, value)
+VALUES ('MAX_ORGANISMS_QUERY', '500');
+
+
+-- First part of the database instance name displayed in the web interface.
+INSERT INTO public.settings (name, value)
+VALUES ('DB_NAME', 'exampleInstance');
+
+
+-- Second part (suffix) of the database instance name displayed in the
+-- web interface.
+INSERT INTO public.settings (name, value)
+VALUES ('DB_NAME_SUFFIX', 'DB');
+
+
+-- File name of the database instance logo. The file must be stored in the
+-- directory specified by PERMANENT_FILES_DIRECTORY.
+INSERT INTO public.settings (name, value)
+VALUES ('DB_LOGO_FILE_NAME', 'exampleInstanceDB-logo-prod.png');
+
+
+-- Welcome message displayed in the page header next to the database
+-- instance name.
+INSERT INTO public.settings (name, value)
+VALUES (
+    'DB_WELCOME_MESSAGE',
+    'Configure the welcome message of this flexBioDB instance.'
+);
+
+
+-- =============================================================================
+-- About page
+-- =============================================================================
+-- Content displayed on the About page. HTML markup can be used in these
+-- settings to customize the presentation.
+-- =============================================================================
+
+INSERT INTO public.settings (name, value)
+VALUES (
+    'ABOUT_COLLABORATION',
+    'Configure the collaboration subsection of this flexBioDB instance.'
+);
+
+INSERT INTO public.settings (name, value)
+VALUES (
+    'ABOUT_CITE',
+    'Configure the how to cite us subsection of this flexBioDB instance.'
+);
+
+INSERT INTO public.settings (name, value)
+VALUES (
+    'ABOUT_MISSION',
+    'Configure the mission of this flexBioDB instance.'
+);
+
+INSERT INTO public.settings (name, value)
+VALUES (
+    'ABOUT_SCOPE',
+    'Configure the scope subsection of this flexBioDB instance.'
+);
+
+INSERT INTO public.settings (name, value)
+VALUES (
+    'ABOUT_CONTACT',
+    'Configure the contact us subsection of this flexBioDB instance.'
+);
 
 --
 -- Data for Name: trait_type; Type: TABLE DATA; Schema: public; Owner: -
