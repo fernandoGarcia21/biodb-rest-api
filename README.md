@@ -45,6 +45,59 @@ The REST API acts as the communication layer between the web client and
 the database. It handles database queries, authentication, data
 submission, file management, and other server-side operations.
 
+## Repository structure
+
+The REST API repository is organized as follows:
+
+``` text
+biodb-rest-api/
+├── database/
+│   ├── examples/
+│   │   └── settings.LittorinaDB.sql
+│   ├── README.md
+│   ├── schema.sql
+│   └── seed.sql
+│
+├── src/
+│   ├── controllers/
+│   ├── middleware/
+│   ├── routes/
+│   ├── utilities/
+│   ├── config.js
+│   ├── constants.js
+│   ├── db.js
+│   └── index.js
+│
+├── .env.example
+├── package.json
+├── package-lock.json
+├── README.md
+└── workspace.code-workspace
+```
+
+### Main directories and files
+
+-   **`database/`** --- contains the PostgreSQL schema, initial seed
+    data, database installation documentation, and example instance
+    configurations.
+-   **`database/examples/`** --- contains examples showing how a generic
+    flexBioDB installation can be configured for a particular research
+    community. `settings.LittorinaDB.sql` provides the reference
+    configuration for LittorinaDB.
+-   **`src/controllers/`** --- implements the server-side logic
+    associated with the API resources.
+-   **`src/routes/`** --- defines the REST API endpoints and maps
+    incoming requests to the corresponding controllers.
+-   **`src/middleware/`** --- contains middleware used for
+    authentication, rate limiting, and other request-processing tasks.
+-   **`src/utilities/`** --- contains reusable utility functions and
+    definitions used by the backend.
+-   **`src/index.js`** --- application entry point.
+-   **`src/db.js`** --- PostgreSQL connection configuration and database
+    access setup.
+-   **`src/config.js`** --- backend application configuration.
+-   **`src/constants.js`** --- constants used throughout the REST API.
+
 ## Main technologies
 
 The backend is built primarily with:
@@ -104,26 +157,24 @@ JWT_SECRET=
 
 The database variables specify the PostgreSQL instance used by the API.
 
-`S_K` is used as an application secret and should be set to a secure,
-unpredictable value.
-
 Do not commit the `.env` file or any credentials to the repository.
 
 ### JWT authentication secret
 
-`JWT_SECRET` is the private key used by the REST API to sign and verify JSON
-Web Tokens (JWTs) for user authentication. After a successful login, the API
-generates a signed token that the client includes in subsequent authenticated
-requests.
+`JWT_SECRET` is the private key used by the REST API to sign and verify
+JSON Web Tokens (JWTs) for user authentication. After a successful
+login, the API generates a signed token that the client includes in
+subsequent authenticated requests.
 
-`JWT_SECRET` must be a long, random, and private value. It must only be stored
-on the backend server and must never be exposed to the frontend or committed
-to the repository.
+`JWT_SECRET` must be a long, random, and private value. It must only be
+stored on the backend server and must never be exposed to the frontend
+or committed to the repository.
 
 A suitable secret can be generated, for example, with:
 
-```bash
+``` bash
 openssl rand -hex 32
+```
 
 ## Development
 
@@ -165,8 +216,17 @@ through the REST API. The framework is designed so that its database and
 application configuration can be adapted to the requirements of
 different biological research systems.
 
-Database schema and initialization instructions should be configured
-before starting a new flexBioDB deployment.
+The `database/` directory contains everything required to initialize a
+new flexBioDB database:
+
+-   `schema.sql` creates the database structure.
+-   `seed.sql` inserts the required reference data, generic instance
+    settings, and bootstrap administrator account.
+-   `examples/settings.LittorinaDB.sql` demonstrates how the generic
+    settings can be customized for a real flexBioDB instance.
+
+See [`database/README.md`](database/README.md) for complete database
+installation, configuration, security, and initialization instructions.
 
 ## LittorinaDB: reference implementation
 
@@ -191,7 +251,7 @@ that can be adapted to other emerging model systems.
 -   Diego Fernando García Castillo ---
     https://github.com/fernandoGarcia21
 
-**Contributors**
+**Co-authors**
 
 -   Anja Westram
 -   Roger Butlin
