@@ -12,15 +12,12 @@ export const login = async(req, res ) => {
     let username = data.username;
 	let password = data.password;
 
-    console.log(data);
-
     //Make sure the fields are not empty
     if (username && password) {
 
         try{
             const {rows} = await pool.query('SELECT U.id, P.id person_id, P.first_name, P.family_name, P.email, U.status_id, U.user_level_id, U.password FROM person P, user_credentials U WHERE P.email = $1 AND U.person_id = P.id', [username]);
 
-            console.log(rows)
             //If the user was found
             if (rows.length > 0) {
                 //Validate the typed password with the password in the DB
@@ -32,15 +29,13 @@ export const login = async(req, res ) => {
                         const token = jwt.sign({ userId: rows[0].id, levelId: rows[0].user_level_id, personId: rows[0].person_id}, SECRET_KEY, {
                             expiresIn: '1h',
                             });
-
-                        console.log(token);
-
+                            
                         req.session.loggedin = true;
 				        req.session.username = username;
                         
                         //res.cookie('jwt', token, { httpOnly: true, secure: true });
                         //If sameSite is set to 'none', the secure flag must be set to true
-                        res.cookie('jwt', token, { sameSite: 'strict', httpOnly: false, secure: false});
+                        res.cookie('jwt', token, { sameSite: 'none', httpOnly: true, secure: true});
                         res.json({ userId: rows[0].id, 
                                    personId: rows[0].person_id,
                                    levelId: rows[0].user_level_id,
@@ -74,10 +69,6 @@ export const login = async(req, res ) => {
 //Deletes the session of the current user
 export const logout = async(req, res ) => {
     const data = req.body;
-    console.log('EN EL LOGOUT')
-    console.log(req.session);
-    console.log('JWT Cookie');
-    console.log(req.cookies.jwt);
     if (req.session) {
         await req.session.destroy(err => {
           if (err) {
