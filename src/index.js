@@ -125,7 +125,7 @@ app.use(settingsRoutes);
 //Start the server listening on a given port and
 //load the end point roles from the database 
 //into the global objects of the application
-app.listen(HTTP_PORT, '0.0.0.0', async function(){
+app.listen(HTTP_PORT, '127.0.0.1', async function(){
     console.log('Loading end point access rules');
     const endPointAccess = await getAllEndPointAccess(); 
 	const speciesInternalCodes = await getSpeciesInternalCodes();
