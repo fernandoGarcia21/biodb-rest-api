@@ -35,7 +35,7 @@ export const login = async(req, res ) => {
                         
                         //res.cookie('jwt', token, { httpOnly: true, secure: true });
                         //If sameSite is set to 'none', the secure flag must be set to true
-                        res.cookie('jwt', token, { sameSite: 'none', httpOnly: true, secure: true});
+                        res.cookie('jwt', token, {sameSite: 'none', httpOnly: true, secure: true, maxAge: 60 * 60 * 1000});
                         res.json({ userId: rows[0].id, 
                                    personId: rows[0].person_id,
                                    levelId: rows[0].user_level_id,
