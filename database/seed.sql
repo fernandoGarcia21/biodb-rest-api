@@ -370,6 +370,9 @@ INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('
 INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/species', 'POST', 1);
 INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/species/:id', 'PUT', 1);
 INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/species/:id', 'DELETE', 1);
+INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/habitat', 'POST', 1);
+INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/habitat/:id', 'PUT', 1);
+INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/habitat/:id', 'DELETE', 1);
 
 
 --
