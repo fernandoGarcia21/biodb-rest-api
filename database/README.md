@@ -20,6 +20,13 @@ systems.
 -   `examples/settings.LittorinaDB.sql` --- optional example showing how
     the generic `settings` values can be customized for a real flexBioDB
     instance. LittorinaDB is provided as the reference implementation.
+-   `examples/favicon.LittorinaDB.ico` --- example browser favicon used by
+    the LittorinaDB reference implementation.
+-   `examples/logo.LittorinaDB.png` --- example database-instance logo used
+    by LittorinaDB.
+-   `examples/TemplateOrganisms.LittorinaDB.csv` --- example CSV template
+    used by LittorinaDB for batch creation, modification, and deletion of
+    organism records.
 
 The seed contains only the initial data required by the framework. It is
 not intended to contain real LittorinaDB users or other production user
@@ -123,6 +130,76 @@ example of how these generic settings can be customized for LittorinaDB.
 It uses `UPDATE` statements and is intended to be executed only after
 `seed.sql`. Review and adapt the file-system paths before using it.
 
+### Permanent instance files
+
+`PERMANENT_FILES_DIRECTORY` identifies the server directory containing
+persistent files required by a deployed flexBioDB instance. In addition
+to other instance-specific resources, this directory should contain the
+site favicon, database-instance logo, and the organism batch CSV
+template.
+
+For the LittorinaDB reference implementation, the corresponding files
+are provided under `database/examples/` as examples. They should not be
+treated as universal flexBioDB assets. Administrators deploying a new
+instance should create or adapt equivalent files for their own study
+system and place the deployed versions in the directory configured by
+`PERMANENT_FILES_DIRECTORY`.
+
+A deployed permanent-files directory will typically contain:
+
+``` text
+permanent_files/
+├── favicon.ico
+├── <instance-logo>.png
+└── TemplateOrganisms.csv
+```
+
+The expected resources are:
+
+-   `favicon.ico` --- browser favicon for the deployed instance. The
+    LittorinaDB example is a small `.ico` representation of the
+    LittorinaDB logo. A new instance should provide its own favicon.
+-   `<instance-logo>.png` --- main logo displayed for the database
+    instance. The filename is configurable and **must match exactly the
+    value stored in the `settings` record `DB_LOGO_FILE_NAME`**. The
+    LittorinaDB reference logo is approximately 902 x 728 px, corresponding
+    to a width-to-height aspect ratio of about **1.24:1**. A resolution
+    around 900 x 730 px is recommended, although other resolutions can be
+    used provided that a similar aspect ratio and adequate image quality
+    are maintained.
+-   `TemplateOrganisms.csv` --- CSV template used for batch creation,
+    modification, and deletion of individual organisms. The template
+    contains four static columns---`ORGANISM ID`, `SPECIES`,
+    `SAMPLING AREA`, and `PROJECTS`---followed by dynamic columns derived
+    from the trait/feature-property hierarchy configured for the
+    particular database instance. `ORGANISM ID` is the mandatory primary
+    identifier. Dynamic column headers must exactly match the template
+    identifiers defined during metadata configuration. To prevent parsing
+    conflicts within the delimiter-separated framework, values containing
+    commas should be sanitized or commas should be replaced with
+    semicolons.
+
+The provided `examples/TemplateOrganisms.LittorinaDB.csv` file is
+therefore an **example only**. Its dynamic columns reflect the metadata
+configuration of LittorinaDB and must be adapted when deploying a
+flexBioDB instance with a different trait/feature-property configuration.
+
+For LittorinaDB, the example files correspond conceptually to the
+following deployed resources:
+
+``` text
+database/examples/                         PERMANENT_FILES_DIRECTORY/
+├── favicon.LittorinaDB.ico        ->      ├── favicon.ico
+├── logo.LittorinaDB.png           ->      ├── LittorinaDB-logo-prod.png
+└── TemplateOrganisms.LittorinaDB.csv ->   └── TemplateOrganisms.csv
+```
+
+The `examples/` directory is intended to provide version-controlled
+reference material. The actual files used by a production deployment
+belong in the server directory configured by
+`PERMANENT_FILES_DIRECTORY`, where they can be adapted independently for
+each flexBioDB instance.
+
 ## 4. Review the bootstrap administrator credentials
 
 Before importing `seed.sql`, review the default flexBioDB administrator
@@ -225,6 +302,14 @@ deployment environment, especially `PERMANENT_FILES_DIRECTORY` and
 Administrators deploying a different biological database can use this
 file as a guide and update the corresponding records with values
 appropriate to their own flexBioDB instance.
+
+The remaining files under `database/examples/` provide the corresponding
+LittorinaDB examples for the favicon, instance logo, and organism batch
+template. These files are reference resources and are **not installed
+automatically** by the SQL script. Copy or adapt equivalent files into
+the directory configured by `PERMANENT_FILES_DIRECTORY`. If the logo is
+renamed, update `DB_LOGO_FILE_NAME` in the `settings` table so that it
+matches the deployed filename exactly.
 
 ## 8. Refresh the materialized views
 
