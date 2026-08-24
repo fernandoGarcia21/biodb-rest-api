@@ -25,6 +25,7 @@ export const getAllOrganismsInformation = async(req, res ) => {
                                                 individual_id,
                                                 species_id,
                                                 species_name,
+                                                habitat_name,
                                                 sampling_site_id,
                                                 sampling_site_name,
                                                 location_id,
@@ -32,7 +33,7 @@ export const getAllOrganismsInformation = async(req, res ) => {
                                                 country_name,
                                                 json_agg(row(trait_name, property_name, template_column_name, value)) AS properties 
                                         FROM view_all_organisms_info
-                                        GROUP BY 1,2,3,4,5,6,7,8,9 --Group the query by the first seven columns
+                                        GROUP BY 1,2,3,4,5,6,7,8,9,10 --Group the query by the first seven columns
                                         ORDER BY species_name, individual_id)`);
     
     // Get total count and limit to first 1000 rows
@@ -192,11 +193,12 @@ export const getFilteredOrganismsInformation = async(req, res ) => {
                                     sampling_site_name,
                                     location_id,
                                     location_name,
-                                    country_name`;
+                                    country_name,
+                                    habitat_name`;
     let aggregateStatement =", '[]'::json AS properties "; //Statement to aggregate the properties of the organisms
     let queryFromViewOrganisms = ' FROM view_all_organisms_info ';
 
-    let groupStatement = ` GROUP BY 1,2,3,4,5,6,7,8,9 --Group the query by the first seven columns
+    let groupStatement = ` GROUP BY 1,2,3,4,5,6,7,8,9,10 --Group the query by the first seven columns
                         ORDER BY species_name, individual_id`;
 
     let outputPropertiesStatement = ''; //Statement to filter the properties defined in the outputProperties array
@@ -461,6 +463,7 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
                                     id,
                                     individual_id "Internal Id",
                                     species_name "Species",
+                                    habitat_name "Habitat",
                                     sampling_site_name "Sampling area",
                                     location_name "Sampling location",
                                     country_name "Country"`;
@@ -653,7 +656,7 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
     if(propertiesOutputArray.length > 0){
         outputPropertiesStatement += format(` (property_id IN (%L) OR property_id IS NULL)`, propertiesOutputArray).replace(/'/g, ""); //Statement to filter the properties defined in the outputProperties array
     }else{
-        groupStatement = ` GROUP BY 1,2,3,4,5,6 ` //Group the query by the first four columns, it will be applied only if there are no output properties provided because otherwise the output properties will be grouped in the crosstab query
+        groupStatement = ` GROUP BY 1,2,3,4,5,6,7 ` //Group the query by the first four columns, it will be applied only if there are no output properties provided because otherwise the output properties will be grouped in the crosstab query
     }
 
     //Add the output properties condition statement to the query
