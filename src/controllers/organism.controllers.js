@@ -77,7 +77,7 @@ export const createOrganism = async(req, res ) => {
             internal_individual_id, 
             species_id, 
             sampling_site_id]);
-        console.log(rows)
+        //console.log(rows)
         newId = rows[0].id
 
     }catch(error){
@@ -126,7 +126,7 @@ export const deleteOrganism = async(req, res ) => {
 //Query the database to return a list of internal IDs and individual ids based on a list of individual Ids
 export const getOrganismsByListIds = async(listIndividualIds) => {
     const valuesIn = "'"+listIndividualIds.join("','")+"'";
-    console.log(valuesIn);
+    //console.log(valuesIn);
     const {rows} = await pool.query('SELECT O.id, O.individual_id FROM organism O WHERE O.individual_id = ANY ($1)', [listIndividualIds]);
     return(rows);
 };
@@ -275,8 +275,8 @@ export const getFilteredOrganismsInformation = async(req, res ) => {
             }
             //The output set of properties can be different to the input set of properties to filter
             if(key === 'filterPropertiesOutput'){
-                console.log('****The output properties array is:');
-                console.log(valuesArray);
+                //console.log('****The output properties array is:');
+                //console.log(valuesArray);
                 propertiesOutputArray.push(...valuesArray);
 
             }
@@ -382,11 +382,11 @@ export const getFilteredOrganismsInformation = async(req, res ) => {
 	                            get_projects_organism(ID) PROJECTS
                           FROM(${queryViewOrganisms})`;
 
-    console.log('**** The query is:');
-    console.log(queryViewOrganisms);
+    //console.log('**** The query is:');
+    //console.log(queryViewOrganisms);
 
-    console.log('****The filter array is:');
-    console.log(filterArray);
+    //console.log('****The filter array is:');
+    //console.log(filterArray);
 
     try{
         // First get the total count of rows
@@ -448,7 +448,10 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
     //Map the operations to the SQL statements
     //Decode the filter parameters from the URL
     //So they can be used as an object in the query
-    const params = new URLSearchParams(filters);
+    const allParams = new URLSearchParams(filters);
+    //params has all values from allParams except for the formatExport parameter, which is used to determine the output format (CSV or TSV)
+    const params = new URLSearchParams([...allParams].filter(([key]) => key !== 'formatExport'));
+    const formatExport = allParams.get('formatExport') || 'tsv'; // Default to 'tsv' if not provided
     const filterArray = [];
     
     //---------------------------------------------------------------
@@ -541,8 +544,8 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
             }
             //The output set of properties can be different to the input set of properties to filter
             if(key === 'filterPropertiesOutput'){
-                console.log('****The output properties array is:');
-                console.log(valuesArray);
+                //console.log('****The output properties array is:');
+                //console.log(valuesArray);
                 propertiesOutputArray.push(...valuesArray);
 
             }
@@ -675,7 +678,7 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
             )`
         const {rows} = await pool.query(queryConcatProperties, [propertiesOutputArray]);
         const concatPropertiesList = rows[0].concat;
-        console.log(`****The concatenated properties list is: ${concatPropertiesList}`);
+        //console.log(`****The concatenated properties list is: ${concatPropertiesList}`);
 
         //Now we can build the final query with the previously built main query and the crosstab statements to pivot the properties of the organisms from rows to columns
         // Construct the crosstab query
@@ -692,11 +695,12 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
 	                     get_projects_organism(id) Projects
                   FROM(${finalQuery})`;
     
-    console.log('**** The final query is:');
-    console.log(finalQuery);
+    //console.log('**** The final query is:');
+    //console.log(finalQuery);
 
-    console.log('****The filter array is:');
-    console.log(filterArray);
+    //console.log('****The filter array is:');
+    //console.log(filterArray);
+
 
     try{
         const {rows} = await pool.query(finalQuery, []);
@@ -705,17 +709,24 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
          // The first column in the query output is the numeric ID, we do not
          //need that value so, we slice the first element of the array
         const columnNames = rows.length > 0 ? Object.keys(rows[0]).slice(1) : [];
+        //console.log('The format is: ' + formatExport);
+        const joinChar = formatExport === 'csv' ? ',' : '\t'; // Determine the join character based on the format
 
-        // Format the results as TSV
-        const tsv = [
-            columnNames.join('\t'), // Add column names as the first row
-            ...rows.map((row) => Object.values(row).slice(1).join('\t'))
+        // Format the results as TSV or CSV
+        const outputDataFile = [
+            columnNames.join(joinChar), // Add column names as the first row
+            ...rows.map((row) => Object.values(row).slice(1).join(joinChar))
         ].join('\n');
 
-    // Set response headers for TSV download
-    res.setHeader('Content-Type', 'text/tab-separated-values');
-    res.setHeader('Content-Disposition', 'attachment; filename=data.tsv');
-    res.send(tsv);
+    // Set response headers based on the format
+    if(formatExport === 'csv'){
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=data.csv');
+    }else if(formatExport === 'tsv'){
+        res.setHeader('Content-Type', 'text/tab-separated-values');
+        res.setHeader('Content-Disposition', 'attachment; filename=data.tsv');
+    }
+    res.send(outputDataFile);
 
     }catch(error){
         console.log(error);
