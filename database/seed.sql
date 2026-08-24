@@ -323,6 +323,10 @@ INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('
 INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/user/:id', 'GET', 1);
 INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/person', 'POST', 1);
 INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/person', 'POST', 2);
+INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/person/:id', 'PUT', 1);
+INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/person/:id', 'DELETE', 1);
+INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/user/:id', 'PUT', 1);
+INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/user/:id', 'DELETE', 1);
 INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/user', 'POST', 1);
 INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/user', 'POST', 2);
 INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('/user/all', 'GET', 1);
