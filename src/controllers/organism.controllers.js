@@ -454,7 +454,7 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
     //---------------------------------------------------------------
     //Statements that are used to pivot the properties of the organisms from rows to columns using the tablefunc extension (ie. CREATE EXTENSION tablefunc;)
     let queryPropertiesPivot = `SELECT name property_name FROM property where id IN (%L) ORDER BY trait_id, name`;
-    let queryAsCrossTableBegin = ` AS ct (id integer, "Internal Id" text, "Species" text, "Sampling area" text, "Sampling location" text, "Country" text, `; //This is the query to pivot the properties of the organisms from rows to columns
+    let queryAsCrossTableBegin = ` AS ct (id integer, "Internal Id" text, "Species" text, "Habitat" text, "Sampling area" text, "Sampling location" text, "Country" text, `; //This is the query to pivot the properties of the organisms from rows to columns
     let queryAsCrossTableEnd = `) `;
     //---------------------------------------------------------------
 
