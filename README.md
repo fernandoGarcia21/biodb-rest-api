@@ -72,6 +72,7 @@ biodb-rest-api/
 ├── package.json
 ├── package-lock.json
 ├── README.md
+├── DEPLOYMENT.md
 └── workspace.code-workspace
 ```
 
@@ -194,6 +195,14 @@ Start the API with:
 ``` bash
 npm start
 ```
+
+## Production deployment
+
+For a complete guide to deploying a flexBioDB instance on a production VPS,
+including PostgreSQL, the REST API, the Next.js frontend, PM2, Nginx, HTTPS,
+persistent files, and search-engine configuration, see:
+
+ -   **[VPS Production Deployment Guide](DEPLOYMENT.md)**
 
 For production deployments, a process manager such as PM2 can be used to
 keep the API running and restart it automatically when necessary.
