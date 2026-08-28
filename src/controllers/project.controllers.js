@@ -9,6 +9,7 @@ import format from 'pg-format';
 //Query the database to return all projects
 export const getAllProjects = async(req, res ) => {
     const {rows} = await pool.query(`SELECT  pr.id,
+                                                pr.internal_id,
                                                 pr.name,
                                                 pr.description,
                                                 pr.owner_person_id,
@@ -22,8 +23,8 @@ export const getAllProjects = async(req, res ) => {
                                         JOIN person pe ON pe.id = pr.owner_person_id
                                         LEFT JOIN project_external_dataset ped on ped.project_id = pr.id
                                         LEFT JOIN external_dataset ed on ed.id = ped.external_dataset_id
-                                        GROUP BY 1,2,3,4,5,6
-                                        ORDER BY 2 ASC`);
+                                        GROUP BY 1,2,3,4,5,6,7
+                                        ORDER BY 3 ASC`);
     res.json(rows);
 };
 
@@ -31,6 +32,7 @@ export const getAllProjects = async(req, res ) => {
 export const getProject = async(req, res ) => {
     const {id} = req.params;
     const {rows} = await pool.query(`SELECT  pr.id,
+                                                pr.internal_id,
                                                 pr.name,
                                                 pr.description,
                                                 pr.owner_person_id,
@@ -53,6 +55,7 @@ export const getProject = async(req, res ) => {
 export const getProjectsMustReadByIds = async(req, res ) => {
     const {idsArray} = req.params;
     let statementProjects = `SELECT pj.id,
+                                pj.internal_id,
                                 pj.name,
                                 pj.must_read_title,
                                 pj.must_read_content
@@ -75,7 +78,7 @@ export const createProject = async(req, res ) => {
     const data = req.body;
     let newId = 0;
     try{
-        const {rows} = await pool.query('INSERT INTO project VALUES(DEFAULT, $1, $2, $3, $4, $5) RETURNING *', [data.name, data.description, data.owner_person_id, data.must_read_title, data.must_read_content]);
+        const {rows} = await pool.query('INSERT INTO project VALUES(DEFAULT, $1, $2, $3, $4, $5, $6) RETURNING *', [data.name, data.description, data.owner_person_id, data.must_read_title, data.must_read_content, data.internal_id]);
         console.log(rows)
         newId = rows[0].id
     }catch(error){
@@ -95,7 +98,7 @@ export const updateProject = async(req, res ) => {
     const {id} = req.params;
     const data = req.body;
     try{
-        const {rows} = await pool.query('UPDATE project SET name = $1, description = $2, owner_person_id = $3, must_read_title = $4, must_read_content = $5 WHERE id = $6 RETURNING *', [data.name, data.description, data.owner_person_id, data.must_read_title, data.must_read_content, id]);
+        const {rows} = await pool.query('UPDATE project SET name = $1, description = $2, owner_person_id = $3, must_read_title = $4, must_read_content = $5, internal_id = $6 WHERE id = $7 RETURNING *', [data.name, data.description, data.owner_person_id, data.must_read_title, data.must_read_content, data.internal_id, id]);
     }catch(error){
         console.log(error);
             return res.status(500).json({message: "Internal server error"}); 
@@ -203,3 +206,4 @@ export const deleteProjectExternalDataset = async(req, res ) => {
 
     return res.sendStatus(204);
 };
+

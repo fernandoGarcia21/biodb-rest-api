@@ -663,7 +663,8 @@ CREATE TABLE public.project (
     description text,
     owner_person_id integer NOT NULL,
     must_read_title character varying(250),
-    must_read_content text
+    must_read_content text,
+    internal_id character varying(20)
 );
 
 
