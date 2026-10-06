@@ -733,7 +733,7 @@ The recommended initial configuration order is:
 Administrator-only configuration includes the foundational taxonomy,
 habitat, location, sampling-area, and trait/property metadata. Projects
 and external datasets can also be managed by the appropriate
-group-leader role according to the application's access rules.
+data-contributor role according to the application's access rules.
 
 ### Trait/property template columns
 

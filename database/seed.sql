@@ -310,7 +310,7 @@ INSERT INTO public.data_type (id, name) VALUES (3, 'Text/URL');
 --
 
 INSERT INTO public.user_level (id, name) VALUES (1, 'Admin');
-INSERT INTO public.user_level (id, name) VALUES (2, 'Leader');
+INSERT INTO public.user_level (id, name) VALUES (2, 'Data contributor');
 INSERT INTO public.user_level (id, name) VALUES (3, 'Invited');
 
 
