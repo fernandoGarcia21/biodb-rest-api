@@ -27,7 +27,7 @@ export const login = async(req, res ) => {
                     if(rows[0].status_id == active_user_status){
 
                         const token = jwt.sign({ userId: rows[0].id, levelId: rows[0].user_level_id, personId: rows[0].person_id}, SECRET_KEY, {
-                            expiresIn: '1h',
+                            expiresIn: '8h',
                             });
                             
                         req.session.loggedin = true;

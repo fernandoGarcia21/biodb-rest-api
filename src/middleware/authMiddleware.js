@@ -34,9 +34,18 @@ export const verifyToken = async(req, res, next) => {
             }
             
         } catch (error) {
-        console.log(error);
-        res.status(401).json({ error: 'Invalid token' });
-        }
+            if (error.name === 'TokenExpiredError') {
+                return res.status(401).json({
+                    code: 'TOKEN_EXPIRED',
+                    message: 'Your session has expired. Please log in again.'
+                });
+            }
+
+            return res.status(401).json({
+                code: 'INVALID_TOKEN',
+                message: 'Invalid authentication token'
+            });
+        }//close catch
     }else{
         next();
     }
@@ -48,6 +57,8 @@ export const verifyToken = async(req, res, next) => {
 export const verifyClientToken = async(req, res) => {
     //The token might come from the Thunder Client app or from a cookie in the browser
     const token = req.header('Authorization') ? req.header('Authorization') : req.cookies.jwt;
+    console.log('The token from the client is: ');
+    console.log(token);
     if (!token) return res.status(401).json({ error: 'Access denied' });
     try {
         //The token might come from the Thunder Client app or from a cookie in the browser
