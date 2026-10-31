@@ -122,37 +122,55 @@ app.use(settingsRoutes);
 
 
 
-//Start the server listening on a given port and
-//load the end point roles from the database 
-//into the global objects of the application
-app.listen(HTTP_PORT, '127.0.0.1', async function(){
-    console.log('Loading end point access rules');
-    const endPointAccess = await getAllEndPointAccess(); 
-	const speciesInternalCodes = await getSpeciesInternalCodes();
-	const batchTypeNumbercols = await getBatchTypeNumberCols();
-	const customSettings = await getSettings();
-    //console.log(endPointAccess);
-	//console.log(speciesInternalCodes);
-	//console.log(batchTypeNumbercols);
-	//console.log(customSettings);
-    //Export the end point access rules as a global object
-    global.endPointAccess = endPointAccess;
-	global.speciesInternalCodes = speciesInternalCodes;
-    global.batchTypeNumbercols = batchTypeNumbercols;
-	global.customSettings = customSettings;
+// Replace the cached globals only after every query succeeds.
+async function refreshGlobalObjects() {
+    const [endPointAccess, speciesInternalCodes, batchTypeNumbercols, customSettings] = await Promise.all([
+        getAllEndPointAccess(),
+        getSpeciesInternalCodes(),
+        getBatchTypeNumberCols(),
+        getSettings(),
+    ]);
 
+    global.endPointAccess = endPointAccess;
+    global.speciesInternalCodes = speciesInternalCodes;
+    global.batchTypeNumbercols = batchTypeNumbercols;
+    global.customSettings = customSettings;
+}
+
+// Load application globals at startup and refresh them in the minute cron below.
+app.listen(HTTP_PORT, '127.0.0.1', async function(){
+    console.log('Loading application globals');
+    try {
+        await refreshGlobalObjects();
+    } catch (error) {
+        console.error('Error loading application globals:', error);
+    }
 });
 console.log('Server listening on port ', HTTP_PORT);
  
-// Schedule a task to process batch jobs to run every minute
-cron.schedule('* * * * *', () => {
-    console.log('Batch processes (e.g. create organisms) are executed every //minute:', new Date().toLocaleTimeString());
-	startBatchProcessMain();
+// Refresh processing batch jobs every minute.
+cron.schedule('* * * * *', async () => {
+    //console.log('Batch processes (e.g. create organisms) are executed every minute:', new Date().toLocaleTimeString());
+    try {
+        await startBatchProcessMain();
+    } catch (error) {
+        console.error('Error processing batch jobs:', error);
+    }
 });
 
-// Refreshment of the materialized views: Runs at 10:00 AM every day
+// Refresh application globals before processing batch jobs every minute.
+cron.schedule('*/5 * * * *', async () => {
+    //console.log('Refreshing application globals every 5 minutes:', new Date().toLocaleTimeString());
+    try {
+        await refreshGlobalObjects();
+    } catch (error) {
+        console.error('Error refreshing application globals; keeping previous values:', error);
+    }
+});
+
+// Refreshment of the materialized views: Runs at 02:00 AM every day
 cron.schedule('0 2 * * *', () => {
-	console.log('Task refresh materialized views: Running at 2:00 AM every day');
+	console.log('Task refresh materialized views: Running at ', new Date().toLocaleTimeString());
 	refreshMaterializedViewsMain();
   });
 
