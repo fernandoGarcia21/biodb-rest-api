@@ -18,36 +18,57 @@ export const getOrganisms = async(req, res ) => {
 
 //Query the database to return all organisms and their associated information
 export const getAllOrganismsInformation = async(req, res ) => {
-    const {rows} = await pool.query(`SELECT *,
-                                    get_projects_organism(id) projects
-                                    FROM(
-                                        SELECT id,
-                                                individual_id,
-                                                species_id,
-                                                species_name,
-                                                habitat_name,
-                                                sampling_site_id,
-                                                sampling_site_name,
-                                                location_id,
-                                                location_name,
-                                                country_name,
-                                                json_agg(row(trait_name, property_name, template_column_name, value)) AS properties 
-                                        FROM view_all_organisms_info
-                                        GROUP BY 1,2,3,4,5,6,7,8,9,10 --Group the query by the first seven columns
-                                        ORDER BY species_name, individual_id)`);
-    
-    // Get total count and limit to first 1000 rows
-    const totalCount = rows.length;
     const maxNumOrganismsReturn = global.customSettings[name_setting_max_num_organisms_return];
 
-    // Limit to first e.g. 1000 rows
-    const limitedRows = rows.slice(0, maxNumOrganismsReturn);
-    
-    // Send both the limited rows and total count
+    // Limit organism IDs before aggregating, preserving all properties of each selected organism.
+    // Organism metadata is constant per id; MAX returns that value while grouping only by id.
+    const {rows} = await pool.query(`WITH selected_organisms AS (
+                                            SELECT id
+                                            FROM view_all_organisms_info
+                                            GROUP BY id
+                                            ORDER BY id DESC
+                                            LIMIT $1
+                                        )
+                                        SELECT
+                                            id,
+                                            MAX(individual_id) AS individual_id,
+                                            MAX(species_id) AS species_id,
+                                            MAX(species_name) AS species_name,
+                                            MAX(habitat_name) AS habitat_name,
+                                            MAX(sampling_site_id) AS sampling_site_id,
+                                            MAX(sampling_site_name) AS sampling_site_name,
+                                            MAX(location_id) AS location_id,
+                                            MAX(location_name) AS location_name,
+                                            MAX(country_name) AS country_name,
+                                            MAX(habitat_structure_name) AS habitat_structure,
+                                            BOOL_OR(is_contact_zone) AS is_contact_zone,
+                                            json_agg(
+                                                row(
+                                                    trait_name,
+                                                    property_name,
+                                                    template_column_name,
+                                                    value
+                                                )
+                                            ) AS properties
+                                        FROM view_all_organisms_info
+                                        WHERE id IN (SELECT id FROM selected_organisms)
+                                        GROUP BY id
+                                        ORDER BY id DESC`, [maxNumOrganismsReturn]);
+
+    // Count organisms separately so properties are only aggregated for the limited set.
+    const {rows: countRows} = await pool.query(`
+        SELECT COUNT(*) AS total_count
+        FROM (
+            SELECT id
+            FROM view_all_organisms_info
+            GROUP BY id
+        ) AS organisms
+    `);
+
     res.json({
-        organisms: limitedRows,
-        totalCount: totalCount,
-        totalAllowed: global.customSettings[name_setting_max_num_organisms_return]
+        organisms: rows,
+        totalCount: Number(countRows[0].total_count),
+        totalAllowed: maxNumOrganismsReturn
     });
 };
 
@@ -189,16 +210,18 @@ export const getFilteredOrganismsInformation = async(req, res ) => {
                                     individual_id,
                                     species_id,
                                     species_name,
-                                    sampling_site_id,
-                                    sampling_site_name,
+                                    country_name,
                                     location_id,
                                     location_name,
-                                    country_name,
-                                    habitat_name`;
+                                    sampling_site_id,
+                                    sampling_site_name,
+                                    habitat_name,
+                                    MAX(habitat_structure_name) AS habitat_structure,
+                                    BOOL_OR(is_contact_zone) AS is_contact_zone`;
     let aggregateStatement =", '[]'::json AS properties "; //Statement to aggregate the properties of the organisms
     let queryFromViewOrganisms = ' FROM view_all_organisms_info ';
 
-    let groupStatement = ` GROUP BY 1,2,3,4,5,6,7,8,9,10 --Group the query by the first seven columns
+    let groupStatement = ` GROUP BY 1,2,3,4,5,6,7,8,9,10 --Group the query by the first ten columns
                         ORDER BY species_name, individual_id`;
 
     let outputPropertiesStatement = ''; //Statement to filter the properties defined in the outputProperties array
@@ -282,7 +305,7 @@ export const getFilteredOrganismsInformation = async(req, res ) => {
             }
         }
     }
-
+ 
     //Build the properties filter statement
     //console.log('****The datatypes array is:');
     //console.log(dataTypesArray);
@@ -379,7 +402,7 @@ export const getFilteredOrganismsInformation = async(req, res ) => {
     //Append the function to show the projects associated to the organisms
     queryViewOrganisms = `SELECT *,
                                 get_projects_ids_organism(ID) PROJECT_IDS,
-	                            get_projects_organism(ID) PROJECTS
+	                            get_projects_organism(ID) AS PROJECTS
                           FROM(${queryViewOrganisms})`;
 
     //console.log('**** The query is:');
@@ -457,7 +480,7 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
     //---------------------------------------------------------------
     //Statements that are used to pivot the properties of the organisms from rows to columns using the tablefunc extension (ie. CREATE EXTENSION tablefunc;)
     let queryPropertiesPivot = `SELECT name property_name FROM property where id IN (%L) ORDER BY trait_id, name`;
-    let queryAsCrossTableBegin = ` AS ct (id integer, "Internal Id" text, "Species" text, "Habitat" text, "Sampling area" text, "Sampling location" text, "Country" text, `; //This is the query to pivot the properties of the organisms from rows to columns
+    let queryAsCrossTableBegin = ` AS ct (id integer, "Internal Id" text, "Species" text, "Country" text, "Location" text, "Sampling area" text, "Habitat" text, "Habitat structure" text, "Contact zone in the SA" boolean, `; //This is the query to pivot the properties of the organisms from rows to columns
     let queryAsCrossTableEnd = `) `;
     //---------------------------------------------------------------
 
@@ -466,10 +489,12 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
                                     id,
                                     individual_id "Internal Id",
                                     species_name "Species",
-                                    habitat_name "Habitat",
+                                    country_name "Country",
+                                    location_name "Location",
                                     sampling_site_name "Sampling area",
-                                    location_name "Sampling location",
-                                    country_name "Country"`;
+                                    habitat_name "Habitat",
+                                    habitat_structure_name "Habitat structure",
+                                    is_contact_zone "Contact zone in the SA"`;
     let selectPropertyValueStatement =""; //Statement to aggregate the properties of the organisms
     let queryFromViewOrganisms = ' FROM view_all_organisms_info ';
     let groupStatement = ``; //Statement to group the query by the first four columns
@@ -659,7 +684,7 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
     if(propertiesOutputArray.length > 0){
         outputPropertiesStatement += format(` (property_id IN (%L) OR property_id IS NULL)`, propertiesOutputArray).replace(/'/g, ""); //Statement to filter the properties defined in the outputProperties array
     }else{
-        groupStatement = ` GROUP BY 1,2,3,4,5,6,7 ` //Group the query by the first four columns, it will be applied only if there are no output properties provided because otherwise the output properties will be grouped in the crosstab query
+        groupStatement = ` GROUP BY 1,2,3,4,5,6,7,8,9 ` //Group the query by the nine organism metadata columns, it will be applied only if there are no output properties provided because otherwise the output properties will be grouped in the crosstab query
     }
 
     //Add the output properties condition statement to the query
@@ -692,7 +717,7 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
 
     //Append the function to show the projects associated to the organisms
     finalQuery = `SELECT *,
-	                     get_projects_organism(id) Projects
+	                     get_projects_organism(id) AS "Projects"
                   FROM(${finalQuery})`;
     
     //console.log('**** The final query is:');

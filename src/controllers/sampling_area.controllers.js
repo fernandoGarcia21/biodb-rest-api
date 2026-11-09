@@ -15,12 +15,14 @@ export const getAllSamplingAreas = async(req, res ) => {
                                             l.id location_id,
                                             l.name location_name,
                                             c.name country_name,
-                                            sa.habitat_id,
-                                            h.name habitat_name
+                                            sa.habitat_code,
+                                            hs.name habitat_structure_name,
+                                            sa.is_contact_zone,
+                                            sa.habitat_photo_file_name
                                             FROM sampling_area sa
                                             JOIN location l ON l.id = sa.location_id
                                             JOIN country c ON c.id = l.country_id
-                                            LEFT JOIN habitat h ON h.id = sa.habitat_id
+                                            LEFT JOIN habitat_structure hs ON hs.id = sa.habitat_structure_id
                                             ORDER BY 2`);
     res.json(rows);
 };
@@ -38,13 +40,16 @@ export const getSamplingArea = async(req, res ) => {
                                         C.NAME COUNTRY_NAME,
                                         L.ID LOCATION_ID,
                                         L.NAME LOCATION_NAME,
-                                        SA.HABITAT_ID,
-                                        H.NAME HABITAT_NAME,
-                                        H.DESCRIPTION HABITAT_DESCRIPTION
+                                        SA.HABITAT_CODE,
+                                        SA.HABITAT_STRUCTURE_ID,
+                                        HS.NAME AS HABITAT_STRUCTURE_NAME,
+                                        HS.DESCRIPTION AS HABITAT_STRUCTURE_DESCRIPTION,
+                                        SA.HABITAT_PHOTO_FILE_NAME,
+                                        SA.IS_CONTACT_ZONE
                                     FROM SAMPLING_AREA SA
                                     JOIN LOCATION L ON L.ID = SA.LOCATION_ID
                                     JOIN COUNTRY C ON C.ID = L.COUNTRY_ID
-                                    LEFT JOIN HABITAT H ON H.ID = SA.HABITAT_ID
+                                    LEFT JOIN HABITAT_STRUCTURE HS ON HS.ID = SA.HABITAT_STRUCTURE_ID
                                     WHERE SA.ID = $1`, [id]);
 
     if(rows.length === 0){
@@ -56,16 +61,20 @@ export const getSamplingArea = async(req, res ) => {
 
 //Query the database to return all sampling areas and their associated locations
 export const getAllSamplingAreasAndLocations = async(req, res ) => {
-    const {rows} = await pool.query(`SELECT L.ID LOCATION_ID,
+    const {rows} = await pool.query(`SELECT	L.ID LOCATION_ID,
                                             L.NAME LOCATION_NAME,
                                             SA.ID SAMPLING_AREA_ID,
                                             SA.NAME SAMPLING_AREA_NAME,
-                                            H.ID HABITAT_ID,
-                                            H.NAME HABITAT_NAME
+                                            SA.HABITAT_CODE,
+                                            HS.NAME HABITAT_STRUCTURE_NAME,
+                                            SA.IS_CONTACT_ZONE,
+                                            C.NAME COUNTRY_NAME,
+                                            SA.HABITAT_PHOTO_FILE_NAME
                                         FROM SAMPLING_AREA SA
                                         JOIN LOCATION L ON L.ID = SA.LOCATION_ID
-                                        LEFT JOIN HABITAT H ON H.ID = SA.HABITAT_ID
-                                        ORDER BY 2, 4 ASC`);
+                                        JOIN COUNTRY C ON C.ID = L.COUNTRY_ID
+                                        LEFT JOIN HABITAT_STRUCTURE HS ON HS.ID = SA.HABITAT_STRUCTURE_ID
+                                        ORDER BY SAMPLING_AREA_NAME ASC, LOCATION_NAME ASC, HABITAT_STRUCTURE_NAME ASC`);
     res.json(rows);
 };
 
@@ -80,9 +89,15 @@ export const createSamplingArea = async(req, res ) => {
         const latitude = data.latitude;
         const longitude = data.longitude;
         const location_id = data.location_id;
-        const habitat_id = data.habitat_id;
+        const habitat_code = data.habitat_code;
+        const habitat_structure_id = data.habitat_structure_id;
+        const is_contact_zone = data.is_contact_zone;
+        const habitat_photo_file_name = req.file?.originalname ?? ''; // Access the uploaded file's original name
 
-        const {rows} = await pool.query('INSERT INTO sampling_area VALUES(DEFAULT, $1, $2, $3, $4, $5, $6) RETURNING *', [name, description, latitude, longitude, location_id, habitat_id]);
+        const {rows} = await pool.query('INSERT INTO sampling_area VALUES(DEFAULT, $1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *', 
+            [name, description, latitude, longitude, location_id, 
+                habitat_code, is_contact_zone, habitat_structure_id, 
+                habitat_photo_file_name]);
         console.log(rows)
         newId = rows[0].id
     }catch(error){
@@ -103,13 +118,22 @@ export const updateSamplingArea = async(req, res ) => {
     const {id} = req.params;
     const data = req.body;
     try{
-        const {rows} = await pool.query('UPDATE sampling_area SET name = $1, description = $2, latitude = $3, longitude = $4, location_id = $5, habitat_id = $6 WHERE id = $7 RETURNING *', [
+        const habitat_photo_file_name = req.file?.originalname ?? null;
+        const {rows} = await pool.query(`UPDATE sampling_area SET name = $1, 
+            description = $2, latitude = $3, longitude = $4, 
+            location_id = $5, habitat_code = $6, 
+            is_contact_zone = $7 , habitat_structure_id = $8,
+            habitat_photo_file_name = COALESCE($9, habitat_photo_file_name)
+            WHERE id = $10 RETURNING *`, [
             data.name, 
             data.description, 
             data.latitude, 
             data.longitude, 
             data.location_id, 
-            data.habitat_id,
+            data.habitat_code,
+            data.is_contact_zone,
+            data.habitat_structure_id,
+            habitat_photo_file_name,
             id]);
     }catch(error){
         console.log(error);

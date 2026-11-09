@@ -11,6 +11,7 @@ import ecotypeRoutes from './routes/ecotype.routes.js';
 import locationRoutes from './routes/location.routes.js';
 import samplingAreaRoutes from './routes/sampling_area.routes.js';
 import habitatRoutes from './routes/habitat.routes.js';
+import habitatCodeRoutes from './routes/habitat_code.routes.js';
 import referenceGenomeRoutes from './routes/reference_genome.routes.js';
 import chromosomeRoutes from './routes/chromosome.routes.js';
 import personRoutes from './routes/person.routes.js';
@@ -119,6 +120,7 @@ app.use(typeDatasetRoutes);
 app.use(externalDatasetRoutes);
 app.use(homeRoutes);
 app.use(settingsRoutes);
+app.use(habitatCodeRoutes);
 
 
 

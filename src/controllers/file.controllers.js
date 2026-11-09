@@ -8,12 +8,26 @@
 import fs from 'fs';
 import path from "path";
 import { pool } from "../db.js";
-import {name_setting_permanent_files_path, name_setting_uploads_path, name_settings_logo_file_name} from '../constants.js';
+import {name_setting_permanent_files_path, name_setting_uploads_path, name_settings_logo_file_name, name_setting_sampling_area_files_directory} from '../constants.js';
 
 //Get one file from the permanent files storage folder
 export const getImageFile = async(req, res ) => {
     const filename = req.params.filename;
     const imagePath = path.join(global.customSettings[name_setting_permanent_files_path], filename);
+
+    fs.readFile(imagePath, (err, data) => {
+        if (err) {
+        return res.status(404).send('Image not found');
+        }
+        res.contentType('image/jpeg'); // Adjust content type as needed
+        res.send(data);
+    });
+};
+
+//Get one file from the sampling area files storage folder
+export const getSamplingAreaImageFile = async(req, res ) => {
+    const filename = req.params.filename;
+    const imagePath = path.join(global.customSettings[name_setting_sampling_area_files_directory], filename);
 
     fs.readFile(imagePath, (err, data) => {
         if (err) {
