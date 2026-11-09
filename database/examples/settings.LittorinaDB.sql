@@ -31,6 +31,13 @@ SET value = '/path/to/littorinadb/uploaded_files'
 WHERE name = 'BATCH_FILES_DIRECTORY';
 
 
+-- Absolute path to the directory where image files of sampling area are uploaded by authenticated users.
+UPDATE public.settings
+SET value = '/path/to/littorinadb/uploaded_files/sampling_area'
+WHERE name = 'SAMPLING_AREA_FILES_DIRECTORY';
+
+
+
 -- Maximum number of organism records displayed in query results at
 -- /dashboard/organism. This limit only affects on-screen visualization;
 -- dataset downloads include the complete set of records returned by the query.
@@ -107,3 +114,85 @@ SET value = '<div style="border: 1px solid #aed6f1; padding: 20px; border-radius
     </div>
 </div>'
 WHERE name = 'ABOUT_CONTACT';
+
+
+
+
+
+-- =============================================================================
+-- LittorinaDB habitat descriptor seed (new databases only)
+-- Requires the generic seed to be executed first.
+-- Simple INSERT statements; no ON CONFLICT.
+-- =============================================================================
+
+INSERT INTO public.habitat_descriptor_position (position_number, name, allow_multiple) VALUES
+    (1, 'Substrate type', true),
+    (2, 'Barnacle occurrence', false),
+    (3, 'Wave exposure', true),
+    (4, 'Crevice / refuge structure', false),
+    (5, 'Brown macroalgal occurrence', false);
+
+-- Position 1: Substrate type
+INSERT INTO public.habitat_descriptor_code (descriptor_position_id, code, meaning, display_order)
+SELECT p.id, v.code, v.meaning, v.display_order
+FROM public.habitat_descriptor_position AS p
+CROSS JOIN (VALUES
+    ('R', 'Bedrock (continuous rock)', 1),
+    ('B', 'Boulders (large rock blocks)', 2),
+    ('C', 'Cobbles / pebbles / shingle', 3),
+    ('S', 'Soft substrate (e.g., sand or fine sediments)', 4),
+    ('A', 'Artificial substrate (e.g., seawall, bulkhead, jetty)', 5),
+    ('U', 'Unknown / not recorded', 6)
+) AS v(code, meaning, display_order)
+WHERE p.position_number = 1;
+
+-- Position 2: Barnacle occurrence
+INSERT INTO public.habitat_descriptor_code (descriptor_position_id, code, meaning, display_order)
+SELECT p.id, v.code, v.meaning, v.display_order
+FROM public.habitat_descriptor_position AS p
+CROSS JOIN (VALUES
+    ('W', 'Widespread across the sampled area', 1),
+    ('L', 'Localized: present in part of the sampled area', 2),
+    ('R', 'Rare: observed only occasionally in the sampled area', 3),
+    ('N', 'Not observed', 4),
+    ('U', 'Unknown / not recorded', 5)
+) AS v(code, meaning, display_order)
+WHERE p.position_number = 2;
+
+-- Position 3: Wave exposure
+INSERT INTO public.habitat_descriptor_code (descriptor_position_id, code, meaning, display_order)
+SELECT p.id, v.code, v.meaning, v.display_order
+FROM public.habitat_descriptor_position AS p
+CROSS JOIN (VALUES
+    ('L', 'Low', 1),
+    ('M', 'Moderate', 2),
+    ('H', 'High', 3),
+    ('U', 'Unknown / not recorded', 4)
+) AS v(code, meaning, display_order)
+WHERE p.position_number = 3;
+
+-- Position 4: Crevice / refuge structure
+INSERT INTO public.habitat_descriptor_code (descriptor_position_id, code, meaning, display_order)
+SELECT p.id, v.code, v.meaning, v.display_order
+FROM public.habitat_descriptor_position AS p
+CROSS JOIN (VALUES
+    ('L', 'Large crevices or substantial rock refuges', 1),
+    ('S', 'Small crevices', 2),
+    ('N', 'No visible crevices / refuges', 3),
+    ('M', 'Mixed crevice sizes', 4),
+    ('U', 'Unknown / not recorded', 5)
+) AS v(code, meaning, display_order)
+WHERE p.position_number = 4;
+
+-- Position 5: Fleshy macroalgal occurrence
+INSERT INTO public.habitat_descriptor_code (descriptor_position_id, code, meaning, display_order)
+SELECT p.id, v.code, v.meaning, v.display_order
+FROM public.habitat_descriptor_position AS p
+CROSS JOIN (VALUES
+    ('W', 'Widespread across the sampled area', 1),
+    ('L', 'Localized: present in part of the sampled area', 2),
+    ('R', 'Rare: observed only occasionally in the sampled area', 3),
+    ('N', 'Not observed', 4),
+    ('U', 'Unknown / not recorded', 5)
+) AS v(code, meaning, display_order)
+WHERE p.position_number = 5;

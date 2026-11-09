@@ -119,6 +119,7 @@ Particular attention must be given to:
 ``` text
 PERMANENT_FILES_DIRECTORY
 BATCH_FILES_DIRECTORY
+SAMPLING_AREA_FILES_DIRECTORY
 ```
 
 Both values must be valid absolute paths on the target server. The
@@ -296,7 +297,7 @@ psql -h localhost -U admin_biodb -d biodb -f database/examples/settings.Littorin
 
 The example file uses `UPDATE` statements rather than inserting a second
 set of settings. Before executing it, review values that depend on the
-deployment environment, especially `PERMANENT_FILES_DIRECTORY` and
+deployment environment, especially `PERMANENT_FILES_DIRECTORY`, `SAMPLING_AREA_FILES_DIRECTORY` and
 `BATCH_FILES_DIRECTORY`.
 
 Administrators deploying a different biological database can use this

@@ -386,6 +386,22 @@ INSERT INTO public.end_point_access (end_point, method, user_level_id) VALUES ('
 
 
 --
+-- Data for Name: habitat_structure; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+-- Generic habitat spatial-structure categories (shared by flexBioDB instances).
+INSERT INTO public.habitat_structure (id, name, description) VALUES
+ (1, 'Uniform', 'Relatively homogeneous habitat; minor internal environmental variation is permitted, but no clearly distinguishable habitat patches or systematic spatial transition.'),
+ (2, 'Patchy or sharply transitioning', 'Two or more distinct habitats arranged as a mosaic or separated by relatively sharp boundaries within the sampled area. A clearly distinguishable secondary habitat covering approximately 25% of the sampled area is an indicative guideline, not a strict threshold.'),
+ (3, 'Gradually transitioning', 'Distinct habitat conditions connected by a gradual spatial transition within the sampled area, for example along a tidal gradient.'),
+ (4, 'Unknown', 'Insufficient information to determine the spatial structure of the sampled habitat.');
+
+SELECT pg_catalog.setval(
+    pg_get_serial_sequence('public.habitat_structure', 'id'),
+    (SELECT MAX(id) FROM public.habitat_structure)
+);
+
+--
 -- Data for Name: settings; Type: TABLE DATA; Schema: public; Owner: -
 --
 -- =============================================================================
@@ -410,6 +426,11 @@ VALUES ('PERMANENT_FILES_DIRECTORY', '/path/to/permanent_files');
 -- users are stored.
 INSERT INTO public.settings (name, value)
 VALUES ('BATCH_FILES_DIRECTORY', '/path/to/uploaded_files');
+
+
+-- Absolute path to the directory where image files of sampling area for habitat protocol are uploaded by authenticated users.
+INSERT INTO public.settings(name, value)
+VALUES ('SAMPLING_AREA_FILES_DIRECTORY', '/path/to/uploaded_files/sampling_area');
 
 
 -- Maximum number of organism records displayed in query results at
@@ -443,6 +464,8 @@ VALUES (
     'DB_WELCOME_MESSAGE',
     'Configure the welcome message of this flexBioDB instance.'
 );
+
+
 
 
 -- =============================================================================
