@@ -66,6 +66,7 @@ export const getAllSamplingAreasAndLocations = async(req, res ) => {
                                             SA.ID SAMPLING_AREA_ID,
                                             SA.NAME SAMPLING_AREA_NAME,
                                             SA.HABITAT_CODE,
+                                            HS.ID HABITAT_STRUCTURE_ID,
                                             HS.NAME HABITAT_STRUCTURE_NAME,
                                             SA.IS_CONTACT_ZONE,
                                             C.NAME COUNTRY_NAME,
