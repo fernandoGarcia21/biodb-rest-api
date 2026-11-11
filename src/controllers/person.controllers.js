@@ -5,6 +5,7 @@
 
 import { pool } from "../db.js";
 import { createUserFromPerson } from "./user.controllers.js";
+import { scheduleUserCredentialsNotification } from "../services/user-notifications.js";
 
 //Query the database to return all persons
 export const getAllPersons = async(req, res ) => {
@@ -42,7 +43,6 @@ export const createPerson = async(req, res ) => {
             data.abbreviation, 
             data.email, 
             data.additional_info]);
-        console.log(rows);
 
         newId = rows[0].id;
         
@@ -61,8 +61,13 @@ export const createPerson = async(req, res ) => {
             return res.status(409).json({message: "The person or the user already exist in the DB"});  
         }
         return res.status(500).json({message: "Internal server error"});
+    } finally {
+        client.release();
     }
 
+    if (data.is_create_user === true) {
+        scheduleUserCredentialsNotification({ personId: newId, password: data.password, event: "created" });
+    }
     res.status(201).send(`Person added with ID: ${newId}`)
 };
 
@@ -99,3 +104,12 @@ export const deletePerson = async(req, res ) => {
     return res.sendStatus(204);
 };
 
+
+// Internal lookup for services that need person details without an HTTP response.
+export const getPersonById = async (id) => {
+    const {rows} = await pool.query(
+        'SELECT id, first_name, family_name, email FROM person WHERE id = $1',
+        [id]
+    );
+    return rows[0] ?? null;
+};

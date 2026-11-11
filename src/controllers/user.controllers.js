@@ -4,8 +4,12 @@
  */
 
 import { pool } from "../db.js";
-import {default_user_status, default_user_level, min_length_password, salt_rounds, active_user_status, inactive_user_status} from "../constants.js";
+import {default_user_status, default_user_level, 
+    min_length_password, salt_rounds, 
+    active_user_status, inactive_user_status, 
+    user_level_admin} from "../constants.js";
 import bcrypt from 'bcryptjs';
+import { scheduleUserCredentialsNotification, scheduleUserStatusNotification } from "../services/user-notifications.js";
 
 //Query the database to return all user
 export const getAllUsers = async(req, res ) => {
@@ -73,7 +77,6 @@ export const createUser = async(req, res ) => {
                 data.user_level_id, 
                 hashed_new_passwod, 
                 req.personId]);
-        console.log(rows)
         newId = rows[0].id
     }catch(error){
         console.log(error);
@@ -84,6 +87,7 @@ export const createUser = async(req, res ) => {
         return res.status(500).json({message: "Internal server error"});
     }
 
+    scheduleUserCredentialsNotification({ userId: newId, password: data.password, event: "created" });
     res.status(201).send(`User added with ID: ${newId}`)
 };
 
@@ -102,7 +106,6 @@ export const createUserFromPerson = async( client, pPersonId, pUserLevelId, pPas
                 pUserLevelId, 
                 hashed_new_passwod,
                 pRequestedByPersonId]);
-        console.log(rows)
         newId = rows[0].id
     }catch(error){
         console.log(error);
@@ -115,11 +118,22 @@ export const createUserFromPerson = async( client, pPersonId, pUserLevelId, pPas
 export const updateUser = async(req, res ) => {
     const {id} = req.params;
     const data = req.body;
+    let updated;
     try{
-        const {rows} = await pool.query('UPDATE user_credentials SET status_id = $1, user_level_id = $2 WHERE id = $3 RETURNING *', [data.status_id, data.user_level_id, id]);
+        const {rows} = await pool.query(`WITH previous AS MATERIALIZED (
+            SELECT id, status_id FROM user_credentials WHERE id = $3 FOR UPDATE
+        ) UPDATE user_credentials uc SET status_id = $1, user_level_id = $2
+          FROM previous WHERE uc.id = previous.id
+          RETURNING uc.*, previous.status_id AS previous_status_id`, [data.status_id, data.user_level_id, id]);
+        updated = rows[0];
     }catch(error){
         console.log(error);
             return res.status(500).json({message: "Internal server error"}); 
+    }
+    if (updated && Number(updated.status_id) !== Number(updated.previous_status_id)) {
+        if (Number(updated.status_id) === active_user_status || Number(updated.status_id) === inactive_user_status) {
+            scheduleUserStatusNotification({ userId: id, active: Number(updated.status_id) === active_user_status });
+        }
     }
     res.status(200).send(`User with id ${id} modified successfully`);
 };
@@ -146,8 +160,6 @@ export const changePassword = async(req, res ) => {
 
                         const salt = await bcrypt.genSalt(salt_rounds);
                         const hashed_new_passwod = await bcrypt.hash(data.password, salt);
-                        console.log('Hashed new password:');
-                        console.log(hashed_new_passwod);
 
                         await pool.query('UPDATE user_credentials SET old_password = $1, password = $2 WHERE id = $3 RETURNING *', [rows[0].password, hashed_new_passwod, id]);
                     }else{
@@ -166,6 +178,7 @@ export const changePassword = async(req, res ) => {
         console.log(error);
             return res.status(500).json({message: "Internal server error"}); 
     }
+    scheduleUserCredentialsNotification({ userId: id, password: data.password, event: "passwordChanged" });
     res.status(200).send(`The password was updated successfully`);
 };
 
@@ -187,6 +200,7 @@ export const deleteUser = async(req, res ) => {
 export const createNewUserRequest = async(req, res ) => {
     const data = req.body;
     let personId = 0;
+    let random_password;
 
     //Create a cliente to the DB connection
     const client = await pool.connect()
@@ -214,11 +228,10 @@ export const createNewUserRequest = async(req, res ) => {
     }
 
     //Next create a row in the table user associated with the person id just created or existing
-    const queryInsertUser = 'INSERT INTO user_credentials VALUES(DEFAULT, $1, $2, $3, $4, NULL, $6) RETURNING *'
+    const queryInsertUser = 'INSERT INTO user_credentials VALUES(DEFAULT, $1, $2, $3, $4, NULL, $5) RETURNING *'
 
     const salt = await bcrypt.genSalt(salt_rounds);
-    const random_password = Math.random().toString(36).slice(-6);
-    console.log('Random Password: ' + random_password);
+    random_password = Math.random().toString(36).slice(-6);
     const hashed_passwod = await bcrypt.hash(random_password, salt);
 
     const insertUserValues = [personId, //person Id
@@ -245,6 +258,7 @@ export const createNewUserRequest = async(req, res ) => {
         client.release() //Release the connection
     }
 
+    scheduleUserCredentialsNotification({ personId, password: random_password, event: "created" });
     res.status(201).send(`User ${data.email} added successfully`);
 };
 
@@ -252,12 +266,15 @@ export const createNewUserRequest = async(req, res ) => {
 export const activateUser = async(req, res ) => {
     const {id} = req.params;
     const data = req.body;
+    let changed = false;
     try{
-        const {rows} = await pool.query('UPDATE user_credentials SET status_id = $1 WHERE id = $2 RETURNING *', [active_user_status, id]);
+        const {rows} = await pool.query('UPDATE user_credentials SET status_id = $1 WHERE id = $2 AND status_id IS DISTINCT FROM $1 RETURNING *', [active_user_status, id]);
+        changed = rows.length > 0;
     }catch(error){
         console.log(error);
             return res.status(500).json({message: "Internal server error"}); 
     }
+    if (changed) scheduleUserStatusNotification({ userId: id, active: true });
     res.status(200).send(`User with id ${id} activated successfully`);
 };
 
@@ -265,12 +282,15 @@ export const activateUser = async(req, res ) => {
 export const deactivateUser = async(req, res ) => {
     const {id} = req.params;
     const data = req.body;
+    let changed = false;
     try{
-        const {rows} = await pool.query('UPDATE user_credentials SET status_id = $1 WHERE id = $2 RETURNING *', [inactive_user_status, id]);
+        const {rows} = await pool.query('UPDATE user_credentials SET status_id = $1 WHERE id = $2 AND status_id IS DISTINCT FROM $1 RETURNING *', [inactive_user_status, id]);
+        changed = rows.length > 0;
     }catch(error){
         console.log(error);
             return res.status(500).json({message: "Internal server error"}); 
     }
+    if (changed) scheduleUserStatusNotification({ userId: id, active: false });
     res.status(200).send(`User with id ${id} deactivated successfully`);
 };
 
@@ -292,4 +312,21 @@ export const getUserById = async(user_id) => {
         return null;
     }
     return rows[0];
+};
+
+
+//Query the database to return the active admin users
+export const getAdminUsers = async() => {
+    const {rows} = await pool.query(`SELECT uc.id,
+                                            uc.person_id,
+                                            p.first_name,
+                                            p.family_name,
+                                            p.email,
+                                            uc.user_level_id,
+                                            uc.status_id
+                                    FROM user_credentials uc
+                                    JOIN person p on p.id = uc.person_id
+                                    WHERE uc.status_id = $1 AND uc.user_level_id = $2`, [active_user_status, user_level_admin]);
+
+    return rows;
 };

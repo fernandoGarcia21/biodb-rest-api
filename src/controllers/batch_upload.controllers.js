@@ -4,6 +4,7 @@
  */
 
 import { pool } from "../db.js";
+import { notifyAdminsOfBatchSubmission, notifyBatchStatusChange } from "../services/batch-notifications.js";
 import {
   bu_status_submitted,
   bu_status_approved,
@@ -24,6 +25,7 @@ import {
   bu_column_projects,
   user_level_admin,
   user_level_group_leader,
+  bu_status_rejected,
 } from "../constants.js";
 import { getOrganismsByListIds } from "./organism.controllers.js";
 import { getOrganismPropertiesAssociations } from "./organism_property.controllers.js";
@@ -157,6 +159,18 @@ export const submitBatchUpload = async (req, res) => {
         .json({ message: "The batch upload already exist in the DB" });
     }
     return res.status(500).json({ message: "Internal server error" });
+  }
+
+  // The insert has already committed. Notification failures must not fail the submission.
+  try {
+    await notifyAdminsOfBatchSubmission({
+      batchId: newId,
+      batchName: data.batch_name,
+      batchTypeId: data.batch_type_id,
+      personId: data.person_id,
+    });
+  } catch (error) {
+    console.error("Batch notification failed", { batchId: newId, code: error?.code ?? "NOTIFICATION_ERROR" });
   }
 
   res.status(201).send(`Batch added with ID: ${newId}`);
@@ -386,9 +400,17 @@ async function deleteBatchData(batch, fixedColumnsData, client) {
 // performing database operations, and updating the batch status. 
 // It ensures that all operations are performed within a transaction, 
 // rolling back in case of any errors.
+// Best-effort background delivery never delays the queue or changes saved status.
+function scheduleBatchStatusNotification(batch, outcome) {
+  void Promise.resolve().then(() => notifyBatchStatusChange({ batch, outcome })).catch((error) => {
+    console.error("Batch status notification failed", { batchId: batch.id, outcome, code: error?.code ?? "NOTIFICATION_ERROR" });
+  });
+}
+
 async function processBatch(batch) {
   let client;
   let transactionStarted = false;
+  let outcome;
   try {
     await markBatchRunning(batch.id);
     const { fixedColumnsData, propertiesData } =
@@ -414,6 +436,7 @@ async function processBatch(batch) {
     );
     await client.query("COMMIT");
     transactionStarted = false;
+    outcome = "completed";
     console.info(`Batch ${batch.id} completed successfully`);
   } catch (error) {
     console.error(`Error processing batch ${batch.id}:`, error);
@@ -432,9 +455,11 @@ async function processBatch(batch) {
     client?.release();
     client = undefined;
     await markBatchFailed(batch.id, error);
+    outcome = "failed";
   } finally {
     client?.release();
   }
+  if (outcome) scheduleBatchStatusNotification(batch, outcome);
 }
 
 /** Process the oldest approved batch and await its entire lifecycle. */
@@ -870,17 +895,21 @@ async function validateFixedHeadersData(dataRow) {
 export const updateBatchProcess = async (req, res) => {
   const { id } = req.params;
   const data = req.body;
+  let updatedBatch;
   try {
     const { rows } = await pool.query(
       "UPDATE batch_upload SET status = $1, curator_id = $2, curator_notes = $3, date_curated = NOW() WHERE id = $4 RETURNING *",
       [data.status_id, data.curator_id, data.curator_notes, id],
     );
+    updatedBatch = rows[0];
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Internal server error" });
+  }
+  if (updatedBatch && Number(data.status_id) === bu_status_rejected) {
+    scheduleBatchStatusNotification(updatedBatch, "rejected");
   }
   res
     .status(200)
     .send(`Review of the batch process with id ${id} registered successfully`);
 };
-

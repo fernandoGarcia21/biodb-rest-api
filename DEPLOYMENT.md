@@ -311,6 +311,39 @@ secrets, JWT/session configuration, and instance-specific paths.
 Never place actual production secrets in `DEPLOYMENT.md`, README files,
 Git commits, screenshots, or issue reports.
 
+### 7.1 SMTP email notifications (Nodemailer)
+
+If email notifications are enabled, configure the SMTP settings in the
+**backend** environment (not in the Next.js frontend). The variable names
+must match those expected by the deployed backend; consult `.env.example`.
+
+``` env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=sender@example.com
+SMTP_PASSWORD=<smtp-app-password>
+SMTP_FROM=sender@example.com
+```
+
+For Gmail, use an eligible account with two-step verification and an app
+password; do not use the normal account password. Port `465` generally
+uses implicit TLS (`secure: true` in Nodemailer); port `587` generally
+uses STARTTLS (`secure: false` with TLS upgrade). Match the port and
+transport security options in the backend code. Other SMTP providers may
+require different settings.
+
+Keep SMTP credentials in the private backend environment file, restrict
+file permissions, and never expose them via `NEXT_PUBLIC_*` variables.
+Ensure the backend process **actually loads** this file: storing it under
+`/etc/<instance-name>/backend.env` alone does not make it available to
+PM2. Use the existing PM2/systemd environment-loading mechanism, and
+verify its configuration without printing secrets.
+
+The VPS must be able to make outbound connections to the SMTP provider
+on the configured port. An inbound firewall rule or Nginx change is
+normally not needed for sending mail.
+
+
 ------------------------------------------------------------------------
 
 ## 8. Run the backend with PM2
@@ -351,9 +384,17 @@ pm2 restart biodb-rest-api
 If `package.json` or `package-lock.json` changed:
 
 ``` bash
-npm ci
+npm ci --omit=dev
 pm2 restart biodb-rest-api
 ```
+
+For the Nodemailer update, confirm `package-lock.json` includes the new
+dependency and run `npm ci --omit=dev` before restarting. After changing
+SMTP environment values, restart the backend; use
+`pm2 restart biodb-rest-api --update-env` if the variables are supplied
+through the PM2 process environment. `--update-env` does not itself read
+an arbitrary `/etc/.../backend.env` file. Confirm the configured
+startup mechanism loads the updated values.
 
 ### 8.1 Persist PM2 across reboots
 
@@ -1079,6 +1120,17 @@ ldd ~/.cache/puppeteer/chrome/linux-*/chrome-linux64/chrome | grep "not found"
 
 Install the missing system libraries and restart the backend.
 
+### SMTP notifications fail after deployment
+
+Check that Nodemailer is installed (`npm ls nodemailer`), that all SMTP
+variables are available to the running backend, and that the configured
+port/TLS mode matches the provider. For Gmail, verify the app password
+and account eligibility. Check whether the VPS provider blocks outbound
+SMTP connections. Inspect `pm2 logs biodb-rest-api --lines 50` for
+errors, but never log SMTP credentials or full authentication payloads.
+Finally, trigger a real notification and verify receipt (including the
+spam folder). A PM2 `online` status alone does not verify email delivery.
+
 ### Next.js log contains old errors
 
 `pm2 logs --lines N` shows the tail of persistent log files and can
@@ -1108,6 +1160,8 @@ Before considering the deployment complete, verify:
 -   [ ] Backend production environment is stored outside Git.
 -   [ ] Frontend production environment is stored outside Git.
 -   [ ] Production secrets are not exposed in `NEXT_PUBLIC_*` variables.
+-   [ ] SMTP variables are configured securely when notifications are enabled.
+-   [ ] A real SMTP notification was sent and received successfully.
 -   [ ] Backend is online in PM2.
 -   [ ] Frontend production build succeeds.
 -   [ ] Frontend is online in PM2.

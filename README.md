@@ -112,6 +112,7 @@ The backend is built primarily with:
 -   Multer
 -   Express Session
 -   Express Rate Limit
+-   Nodemailer (SMTP email notifications)
 
 ## Requirements
 
@@ -145,7 +146,7 @@ Create a local environment file from the provided example:
 cp .env.example .env
 ```
 
-Configure the database connection and application secret in `.env`:
+Configure the database connection, application secret, and SMTP settings in `.env`:
 
 ``` env
 DB_USER=
@@ -154,9 +155,17 @@ DB_PASSWORD=
 DB_DATABASE=
 DB_PORT=
 JWT_SECRET=
+
+# SMTP notifications for newly submitted batches
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=
 ```
 
 The database variables specify the PostgreSQL instance used by the API.
+The SMTP variables configure the mail server used for notifications about newly submitted batches.
 
 Do not commit the `.env` file or any credentials to the repository.
 
@@ -176,6 +185,38 @@ A suitable secret can be generated, for example, with:
 ``` bash
 openssl rand -hex 32
 ```
+
+### Email notifications (SMTP)
+
+The REST API uses **Nodemailer** to send email notifications for newly submitted batches. Configure the following variables in the backend environment:
+
+| Variable | Description |
+| --- | --- |
+| `SMTP_HOST` | Hostname of the outgoing SMTP server (for example, `smtp.gmail.com`). |
+| `SMTP_PORT` | SMTP connection port; `587` is commonly used with STARTTLS. |
+| `SMTP_USER` | Username used to authenticate with the SMTP server, typically an email address. |
+| `SMTP_PASSWORD` | SMTP authentication credential. For Gmail, this is typically an app password, not the normal account password. |
+| `SMTP_FROM` | Sender address displayed in notification emails; it must be permitted by the SMTP provider. |
+
+For example, when using Gmail SMTP:
+
+``` env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=notifications@example.com
+SMTP_PASSWORD=your-app-password
+SMTP_FROM=notifications@example.com
+```
+
+Replace the example address and password with valid credentials. Gmail app passwords require an eligible Google account with 2-Step Verification enabled; availability depends on the account's security settings. Other SMTP providers may require different credentials or ports.
+
+Keep SMTP credentials only in private backend configuration. Never commit the populated `.env` file or include secrets in frontend environment variables. For production deployments, ensure these values are available to the API process and restart the process after changing them. If using PM2, for example:
+
+``` bash
+pm2 restart biodb-rest-api --update-env
+```
+
+If environment variables are loaded from a file by the application, make sure the production process reads that file. Verify delivery by triggering a test notification and checking the backend logs.
 
 ## Development
 
