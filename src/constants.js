@@ -97,4 +97,6 @@ export const name_setting_uploads_path = 'BATCH_FILES_DIRECTORY';
 export const name_setting_permanent_files_path = 'PERMANENT_FILES_DIRECTORY';
 export const name_setting_max_num_organisms_return = 'MAX_ORGANISMS_QUERY';
 export const name_settings_logo_file_name = "DB_LOGO_FILE_NAME";
+export const name_settings_db_name = "DB_NAME";
+export const name_settings_db_name_suffix = "DB_NAME_SUFFIX";
 export const name_setting_sampling_area_files_directory = 'SAMPLING_AREA_FILES_DIRECTORY';
