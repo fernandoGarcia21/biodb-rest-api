@@ -480,7 +480,7 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
     //---------------------------------------------------------------
     //Statements that are used to pivot the properties of the organisms from rows to columns using the tablefunc extension (ie. CREATE EXTENSION tablefunc;)
     let queryPropertiesPivot = `SELECT name property_name FROM property where id IN (%L) ORDER BY trait_id, name`;
-    let queryAsCrossTableBegin = ` AS ct (id integer, "Internal Id" text, "Species" text, "Country" text, "Location" text, "Sampling area" text, "Habitat" text, "Habitat structure" text, "Contact zone in the SA" boolean, `; //This is the query to pivot the properties of the organisms from rows to columns
+    let queryAsCrossTableBegin = ` AS ct (id integer, "Internal Id" text, "Species" text, "Country" text, "Location" text, "Sampling area" text, "Habitat" text, "Habitat structure" text, "SA lies in contact zone" boolean, `; //This is the query to pivot the properties of the organisms from rows to columns
     let queryAsCrossTableEnd = `) `;
     //---------------------------------------------------------------
 
@@ -494,7 +494,7 @@ export const getExportFilteredOrganismsInformation = async(req, res ) => {
                                     sampling_site_name "Sampling area",
                                     habitat_name "Habitat",
                                     habitat_structure_name "Habitat structure",
-                                    is_contact_zone "Contact zone in the SA"`;
+                                    is_contact_zone "SA lies in contact zone"`;
     let selectPropertyValueStatement =""; //Statement to aggregate the properties of the organisms
     let queryFromViewOrganisms = ' FROM view_all_organisms_info ';
     let groupStatement = ``; //Statement to group the query by the first four columns
